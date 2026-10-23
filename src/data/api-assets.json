@@ -1,0 +1,599 @@
+{
+  "source": "API-Football",
+  "generatedAt": "2026-10-22T09:19:15.043Z",
+  "teamSeason": 2024,
+  "plan": {
+    "seasonFrom": 2022,
+    "seasonTo": 2024,
+    "observedAt": "2026-10-22T09:18:19.966Z"
+  },
+  "leagues": {
+    "premier-league": {
+      "id": 39,
+      "name": "Premier League",
+      "logo": "https://media.api-sports.io/football/leagues/39.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "laliga": {
+      "id": 140,
+      "name": "La Liga",
+      "logo": "https://media.api-sports.io/football/leagues/140.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "serie-a": {
+      "id": 135,
+      "name": "Serie A",
+      "logo": "https://media.api-sports.io/football/leagues/135.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "bundesliga": {
+      "id": 78,
+      "name": "Bundesliga",
+      "logo": "https://media.api-sports.io/football/leagues/78.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "ligue-1": {
+      "id": 61,
+      "name": "Ligue 1",
+      "logo": "https://media.api-sports.io/football/leagues/61.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "champions-league": {
+      "id": 2,
+      "name": "UEFA Champions League",
+      "logo": "https://media.api-sports.io/football/leagues/2.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "europa-league": {
+      "id": 3,
+      "name": "UEFA Europa League",
+      "logo": "https://media.api-sports.io/football/leagues/3.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "botola-pro": {
+      "id": 200,
+      "name": "Botola Pro",
+      "logo": "https://media.api-sports.io/football/leagues/200.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "conference-league": {
+      "id": 848,
+      "name": "UEFA Europa Conference League",
+      "logo": "https://media.api-sports.io/football/leagues/848.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021
+      ]
+    },
+    "eredivisie": {
+      "id": 88,
+      "name": "Eredivisie",
+      "logo": "https://media.api-sports.io/football/leagues/88.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "primeira-liga": {
+      "id": 94,
+      "name": "Primeira Liga",
+      "logo": "https://media.api-sports.io/football/leagues/94.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "scottish-premiership": {
+      "id": 179,
+      "name": "Premiership",
+      "logo": "https://media.api-sports.io/football/leagues/179.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "super-lig": {
+      "id": 203,
+      "name": "Süper Lig",
+      "logo": "https://media.api-sports.io/football/leagues/203.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "championship": {
+      "id": 40,
+      "name": "Championship",
+      "logo": "https://media.api-sports.io/football/leagues/40.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "fa-cup": {
+      "id": 45,
+      "name": "FA Cup",
+      "logo": "https://media.api-sports.io/football/leagues/45.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "copa-del-rey": {
+      "id": 143,
+      "name": "Copa del Rey",
+      "logo": "https://media.api-sports.io/football/leagues/143.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "saudi-pro-league": {
+      "id": 307,
+      "name": "Pro League",
+      "logo": "https://media.api-sports.io/football/leagues/307.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "egyptian-premier-league": {
+      "id": 233,
+      "name": "Premier League",
+      "logo": "https://media.api-sports.io/football/leagues/233.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "mls": {
+      "id": 253,
+      "name": "Major League Soccer",
+      "logo": "https://media.api-sports.io/football/leagues/253.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "brasileirao": {
+      "id": 71,
+      "name": "Serie A",
+      "logo": "https://media.api-sports.io/football/leagues/71.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "liga-profesional": {
+      "id": 128,
+      "name": "Liga Profesional Argentina",
+      "logo": "https://media.api-sports.io/football/leagues/128.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "afc-champions-league": {
+      "id": 17,
+      "name": "AFC Champions League Elite",
+      "logo": "https://media.api-sports.io/football/leagues/17.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "caf-champions-league": {
+      "id": 12,
+      "name": "CAF Champions League",
+      "logo": "https://media.api-sports.io/football/leagues/12.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "copa-libertadores": {
+      "id": 13,
+      "name": "CONMEBOL Libertadores",
+      "logo": "https://media.api-sports.io/football/leagues/13.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "copa-sudamericana": {
+      "id": 11,
+      "name": "CONMEBOL Sudamericana",
+      "logo": "https://media.api-sports.io/football/leagues/11.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    },
+    "world-cup": {
+      "id": 1,
+      "name": "World Cup",
+      "logo": "https://media.api-sports.io/football/leagues/1.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2022,
+        2018,
+        2014,
+        2010
+      ]
+    },
+    "wc-qualifiers-europe": {
+      "id": 32,
+      "name": "World Cup - Qualification Europe",
+      "logo": "https://media.api-sports.io/football/leagues/32.png",
+      "currentSeason": 2024,
+      "seasons": [
+        2024,
+        2020,
+        2018
+      ]
+    },
+    "nations-league": {
+      "id": 5,
+      "name": "UEFA Nations League",
+      "logo": "https://media.api-sports.io/football/leagues/5.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2024,
+        2022,
+        2020,
+        2018
+      ]
+    },
+    "africa-cup-of-nations": {
+      "id": 6,
+      "name": "Africa Cup of Nations",
+      "logo": "https://media.api-sports.io/football/leagues/6.png",
+      "currentSeason": 2025,
+      "seasons": [
+        2025,
+        2023,
+        2021,
+        2019,
+        2017,
+        2015
+      ]
+    },
+    "asian-cup": {
+      "id": 7,
+      "name": "Asian Cup",
+      "logo": "https://media.api-sports.io/football/leagues/7.png",
+      "currentSeason": 2027,
+      "seasons": [
+        2027,
+        2023,
+        2019,
+        2015,
+        2011
+      ]
+    },
+    "copa-america": {
+      "id": 9,
+      "name": "Copa America",
+      "logo": "https://media.api-sports.io/football/leagues/9.png",
+      "currentSeason": 2024,
+      "seasons": [
+        2024,
+        2021,
+        2019,
+        2016,
+        2015
+      ]
+    },
+    "international-friendlies": {
+      "id": 10,
+      "name": "Friendlies",
+      "logo": "https://media.api-sports.io/football/leagues/10.png",
+      "currentSeason": 2026,
+      "seasons": [
+        2026,
+        2025,
+        2024,
+        2023,
+        2022,
+        2021,
+        2020,
+        2019
+      ]
+    }
+  },
+  "clubs": {
+    "real-madrid": {
+      "teamId": 541,
+      "name": "Real Madrid",
+      "logo": "https://media.api-sports.io/football/teams/541.png"
+    },
+    "barcelona": {
+      "teamId": 529,
+      "name": "Barcelona",
+      "logo": "https://media.api-sports.io/football/teams/529.png"
+    },
+    "atletico": {
+      "teamId": 530,
+      "name": "Atletico Madrid",
+      "logo": "https://media.api-sports.io/football/teams/530.png"
+    },
+    "man-united": {
+      "teamId": 33,
+      "name": "Manchester United",
+      "logo": "https://media.api-sports.io/football/teams/33.png"
+    },
+    "chelsea": {
+      "teamId": 49,
+      "name": "Chelsea",
+      "logo": "https://media.api-sports.io/football/teams/49.png"
+    },
+    "liverpool": {
+      "teamId": 40,
+      "name": "Liverpool",
+      "logo": "https://media.api-sports.io/football/teams/40.png"
+    },
+    "man-city": {
+      "teamId": 50,
+      "name": "Manchester City",
+      "logo": "https://media.api-sports.io/football/teams/50.png"
+    },
+    "arsenal": {
+      "teamId": 42,
+      "name": "Arsenal",
+      "logo": "https://media.api-sports.io/football/teams/42.png"
+    },
+    "bayern": {
+      "teamId": 157,
+      "name": "Bayern München",
+      "logo": "https://media.api-sports.io/football/teams/157.png"
+    },
+    "dortmund": {
+      "teamId": 165,
+      "name": "Borussia Dortmund",
+      "logo": "https://media.api-sports.io/football/teams/165.png"
+    },
+    "psg": {
+      "teamId": 85,
+      "name": "Paris Saint Germain",
+      "logo": "https://media.api-sports.io/football/teams/85.png"
+    },
+    "juventus": {
+      "teamId": 496,
+      "name": "Juventus",
+      "logo": "https://media.api-sports.io/football/teams/496.png"
+    },
+    "ac-milan": {
+      "teamId": 489,
+      "name": "AC Milan",
+      "logo": "https://media.api-sports.io/football/teams/489.png"
+    },
+    "inter": {
+      "teamId": 505,
+      "name": "Inter",
+      "logo": "https://media.api-sports.io/football/teams/505.png"
+    },
+    "napoli": {
+      "teamId": 492,
+      "name": "Napoli",
+      "logo": "https://media.api-sports.io/football/teams/492.png"
+    },
+    "al-ahly": {
+      "teamId": 1577,
+      "name": "Al Ahly",
+      "logo": "https://media.api-sports.io/football/teams/1577.png"
+    },
+    "wydad": {
+      "teamId": 968,
+      "name": "Wydad AC",
+      "logo": "https://media.api-sports.io/football/teams/968.png"
+    },
+    "raja": {
+      "teamId": 976,
+      "name": "Raja Casablanca",
+      "logo": "https://media.api-sports.io/football/teams/976.png"
+    }
+  },
+  "unresolved": {
+    "leagues": [],
+    "clubs": []
+  }
+}

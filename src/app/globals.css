@@ -1,26 +1,126 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Theme tokens. Dark is the default; [data-theme="light"] overrides it.
+ * The attribute is set before first paint by the inline script in layout.tsx.
+ * Components only use the semantic utilities below (bg-surface, text-muted…),
+ * never raw hex values, so both themes stay in sync.
+ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --mp-bg: #0b0d10;
+  --mp-surface: #141619;
+  --mp-surface-2: #1a1d22;
+  --mp-surface-3: #23272e;
+  --mp-line: #262a32;
+  --mp-chrome: #161f33;
+  --mp-chrome-2: #1d2840;
+  --mp-chrome-line: #26324d;
+  --mp-ink: #e8ebf0;
+  --mp-muted: #8f97a5;
+  --mp-faint: #5e6675;
+  --mp-pulse: #2ee66f;
+  --mp-pulse-soft: #12321f;
+  --mp-on-pulse: #04210f;
+  --mp-warn: #f5b84a;
+  --mp-danger: #ff6b6b;
+  --mp-shadow-card: 0 0 0 0 transparent;
+  --mp-shadow-pop: 0 24px 48px -12px rgb(0 0 0 / 0.7);
+  --mp-backdrop: rgb(0 0 0 / 0.65);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --mp-bg: #f2f4f7;
+  --mp-surface: #ffffff;
+  --mp-surface-2: #f7f8fa;
+  --mp-surface-3: #e9edf2;
+  --mp-line: #dde2e9;
+  --mp-chrome: #ffffff;
+  --mp-chrome-2: #f1f4f8;
+  --mp-chrome-line: #dde2e9;
+  --mp-ink: #111827;
+  --mp-muted: #566070;
+  --mp-faint: #8a93a2;
+  --mp-pulse: #0b8a42;
+  --mp-pulse-soft: #e2f5e9;
+  --mp-on-pulse: #ffffff;
+  --mp-warn: #8a5800;
+  --mp-danger: #c62828;
+  --mp-shadow-card: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.04);
+  --mp-shadow-pop: 0 20px 40px -12px rgb(16 24 40 / 0.25);
+  --mp-backdrop: rgb(15 23 42 / 0.45);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--mp-bg);
+  --color-surface: var(--mp-surface);
+  --color-surface-2: var(--mp-surface-2);
+  --color-surface-3: var(--mp-surface-3);
+  --color-line: var(--mp-line);
+  --color-chrome: var(--mp-chrome);
+  --color-chrome-2: var(--mp-chrome-2);
+  --color-chrome-line: var(--mp-chrome-line);
+  --color-ink: var(--mp-ink);
+  --color-muted: var(--mp-muted);
+  --color-faint: var(--mp-faint);
+  --color-pulse: var(--mp-pulse);
+  --color-pulse-soft: var(--mp-pulse-soft);
+  --color-on-pulse: var(--mp-on-pulse);
+  --color-warn: var(--mp-warn);
+  --color-danger: var(--mp-danger);
+  --shadow-card: var(--mp-shadow-card);
+  --shadow-pop: var(--mp-shadow-pop);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-barlow-condensed);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--mp-bg);
+  color: var(--mp-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--mp-pulse);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+dialog::backdrop {
+  background: var(--mp-backdrop);
+}
+
+/* Hide scrollbars on horizontal rails while keeping them scrollable. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Soft fade at the edges of horizontal rails. */
+.edge-fade {
+  mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-dot {
+    animation: none;
+  }
 }

@@ -1,69 +1,122 @@
-import Image from "next/image";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
+import { leagueHref, popularLeagues } from "@/data/leagues";
+import { SAMPLE_NOW, sampleMatches } from "@/data/matches";
+import { isLiveDataEnabled } from "@/lib/api-football/server";
+import { connection } from "next/server";
+import { listStoredReports } from "@/lib/report-store";
+import { MatchReportCard } from "@/components/reports/MatchReportArticle";
+import { LeagueSidebar } from "@/components/leagues/LeagueSidebar";
+import { MatchCenterSkeleton, MatchFeedSection } from "@/components/matches/MatchFeedSection";
+import { ArticlesSkeleton, OriginalArticlesSection } from "@/components/articles/OriginalArticlesSection";
+import { LeagueBadge } from "@/components/ui/LeagueBadge";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 
-export default function Home() {
+export const metadata: Metadata = pageMetadata({
+  title: "MatchPulse — Football scores, fixtures and standings",
+  description: SITE_DESCRIPTION,
+  path: "/",
+  absoluteTitle: true,
+});
+
+export default function HomePage() {
+  // Sample-only: counted over the 24 hours around the sample "now" so the
+  // label does not depend on the viewer's time zone. Hidden with real data.
+  const nowMs = Date.parse(SAMPLE_NOW);
+  const activeCounts = new Map<string, number>();
+  for (const match of isLiveDataEnabled() ? [] : sampleMatches) {
+    if (Math.abs(Date.parse(match.kickoff) - nowMs) <= 12 * 3_600_000) {
+      activeCounts.set(match.leagueSlug, (activeCounts.get(match.leagueSlug) ?? 0) + 1);
+    }
+  }
+
+  const origin = siteUrl();
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="grid gap-6 lg:grid-cols-[14.5rem_minmax(0,1fr)] xl:gap-8">
+      <JsonLd
+        data={{
+          "@graph": [
+            { "@type": "WebSite", name: SITE_NAME, url: origin.toString(), description: SITE_DESCRIPTION },
+            { "@type": "Organization", name: SITE_NAME, url: origin.toString(), logo: new URL("/brand/icon-512.png", origin).toString() },
+          ],
+        }}
+      />
+      <h1 className="sr-only">MatchPulse: football scores, fixtures, standings and player rankings</h1>
+      <LeagueSidebar />
+
+      <div className="min-w-0 space-y-9">
+        <section aria-labelledby="todays-matches">
+          <SectionHeading id="todays-matches" title="Today's Matches" action={{ label: "All matches", href: "/matches" }} />
+          <Suspense fallback={<MatchCenterSkeleton rows={4} />}>
+            <MatchFeedSection maxLeagues={4} />
+          </Suspense>
+        </section>
+
+        <Suspense fallback={null}>
+          <LatestReports />
+        </Suspense>
+
+        {/* Latest original MatchPulse articles; hidden until the first one is published. */}
+        <Suspense fallback={<ArticlesSkeleton cards={3} />}>
+          <OriginalArticlesSection title="Latest News" headingId="latest-news" whenEmpty="hide" limit={6} showAllLink columns="sidebar" />
+        </Suspense>
+
+        <section aria-labelledby="popular-competitions">
+          <SectionHeading
+            id="popular-competitions"
+            title="Popular Competitions"
+            action={{ label: "All leagues", href: "/leagues" }}
+          />
+          <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
+            {popularLeagues.map((league) => {
+              const count = activeCounts.get(league.slug) ?? 0;
+              return (
+                <li key={league.slug}>
+                  <Link
+                    href={leagueHref(league.slug)}
+                    className="flex h-full items-center gap-3 rounded-xl border border-line bg-surface p-3 shadow-card transition-colors hover:border-pulse/40 hover:bg-surface-2"
+                  >
+                    <LeagueBadge league={league} />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-ink">{league.name}</p>
+                      <p className={`truncate text-[11px] ${count ? "font-medium text-pulse" : "text-muted"}`}>
+                        {count ? `${count} sample fixture${count === 1 ? "" : "s"}` : league.country}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </div>
     </div>
+  );
+}
+
+/** Latest stored reports (local store only, no API requests); hidden when there are none. */
+async function LatestReports() {
+  await connection();
+  const reports = await listStoredReports(3);
+  if (reports.length === 0) return null;
+  return (
+    <section aria-labelledby="match-reports">
+      <SectionHeading
+        id="match-reports"
+        eyebrow="From official match data"
+        title="MatchPulse Match Reports"
+        action={{ label: "All reports", href: "/reports" }}
+      />
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {reports.map((report) => (
+          <li key={report.fixtureId}>
+            <MatchReportCard report={report} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
