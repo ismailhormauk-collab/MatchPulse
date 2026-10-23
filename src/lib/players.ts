@@ -1,7 +1,8 @@
 import "server-only";
 
 import { connection } from "next/server";
-import { getLeagueAsset, planSeasons } from "@/data/api-assets";
+import { getLeagueAsset } from "@/data/api-assets";
+import { seasonInWindow, type SeasonWindow } from "@/lib/api-football/plan";
 import { SUPPORTED_COMPETITIONS } from "@/lib/api-football/competitions";
 import { describeError, planSeasonRange, type PlayerStatLine } from "@/lib/api-football/core";
 import { friendlyReason } from "@/lib/api-football/messages";
@@ -64,8 +65,15 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-/** Validates URL filters; anything unknown falls back to a safe default. */
-export function resolvePlayersQuery(params: Record<string, string | string[] | undefined>): PlayersQuery | null {
+/**
+ * Validates URL filters; anything unknown falls back to a safe default. Only
+ * seasons the API plan includes are offered (`planWindow`, see plan.ts), so no
+ * request is made for a season the plan would reject.
+ */
+export function resolvePlayersQuery(
+  params: Record<string, string | string[] | undefined>,
+  planWindow: SeasonWindow | null = null,
+): PlayersQuery | null {
   const requested = first(params.competition);
   const competition = requested && PLAYER_COMPETITIONS.includes(requested) ? requested : PLAYER_COMPETITIONS[0];
   if (!competition) return null;
@@ -75,19 +83,22 @@ export function resolvePlayersQuery(params: Record<string, string | string[] | u
   const category = PLAYER_CATEGORIES.find((item) => item.id === categoryParam)?.id ?? "scorers";
 
   const currentSeason = asset.currentSeason;
-  const seasonOptions = asset.seasons.filter((year) => currentSeason === null || year <= currentSeason).slice(0, 5);
+  const seasonOptions = [...asset.seasons]
+    .sort((a, b) => b - a)
+    .filter((year) => (currentSeason === null || year <= currentSeason) && seasonInWindow(year, planWindow))
+    .slice(0, 5);
+  if (seasonOptions.length === 0) return null;
   const seasonParam = Number(first(params.season));
   let season: number;
   let defaultedForPlan = false;
   if (Number.isInteger(seasonParam) && seasonOptions.includes(seasonParam)) {
     season = seasonParam;
+  } else if (currentSeason !== null && seasonOptions.includes(currentSeason)) {
+    season = currentSeason;
   } else {
-    season = currentSeason ?? seasonOptions[0];
-    // Skip a request the plan is known to reject (window recorded by the asset sync).
-    if (planSeasons && season > planSeasons.to && seasonOptions.includes(planSeasons.to)) {
-      season = planSeasons.to;
-      defaultedForPlan = true;
-    }
+    // The current season is outside the plan: use the latest season it includes.
+    season = seasonOptions[0];
+    defaultedForPlan = currentSeason !== null && !seasonInWindow(currentSeason, planWindow);
   }
   return { competition, category, season, seasonOptions, currentSeason, defaultedForPlan };
 }

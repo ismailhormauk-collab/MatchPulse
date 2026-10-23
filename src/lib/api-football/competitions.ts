@@ -42,6 +42,8 @@ export interface ResolvedCompetition {
   type: string;
   currentSeason: LeagueSeason | null;
   latestSeason: LeagueSeason | null;
+  /** Every season the API lists, newest first, with its coverage. */
+  seasons: LeagueSeason[];
 }
 
 export interface UnresolvedCompetition {
@@ -101,6 +103,7 @@ export function resolveCompetitions(entriesByCountry: Record<string, LeagueEntry
       type: entry.type,
       currentSeason: entry.seasons.find((season) => season.current) ?? null,
       latestSeason: sorted[0] ?? null,
+      seasons: sorted,
     });
   }
 

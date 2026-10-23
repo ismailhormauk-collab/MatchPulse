@@ -25,6 +25,7 @@ const { loadMatchDetails, parseFixtureId } = await import("@/lib/match-details")
 const { getMatchFeed } = await import("@/lib/match-feed");
 const { loadPlayers, resolvePlayersQuery, seasonMatchLimit, PLAYER_COMPETITIONS } = await import("@/lib/players");
 const { getLeagueAsset, planSeasons } = await import("@/data/api-assets");
+const { chooseSeason, resetPlanWindowForTests } = await import("@/lib/api-football/plan");
 const { indexingAllowed, pageMetadata, productionSiteConfigured, siteUrl } = await import("@/lib/site");
 const { getStoredReport, listStoredReports, saveReportOnce } = await import("@/lib/report-store");
 const { isKnownFixture, recordKnownFixtures, resetFixtureIndexMemo, INDEX_MAX_AGE_MS } = await import("@/lib/fixture-index");
@@ -42,7 +43,9 @@ function leaguesRoute(seasonOverrides = {}) {
       SUPPORTED_COMPETITIONS.filter((spec) => spec.country === params.get("country")).map((spec) => ({
         league: { id: ids.get(spec.slug), name: spec.names[0], type: spec.type, logo: null },
         country: { name: spec.country, code: null, flag: null },
-        seasons: [season(seasonOverrides[spec.slug] ?? {})],
+        seasons: Array.isArray(seasonOverrides[spec.slug])
+          ? seasonOverrides[spec.slug].map((overrides) => season(overrides))
+          : [season(seasonOverrides[spec.slug] ?? {})],
       })),
     );
 }
@@ -64,6 +67,7 @@ async function check(name, env, fn) {
   for (const key of ["MATCHPULSE_DATA_SOURCE", "API_FOOTBALL_KEY", "API_FOOTBALL_BASE_URL"]) delete process.env[key];
   Object.assign(process.env, { NODE_ENV: "production" }, env);
   requests = [];
+  resetPlanWindowForTests();
   const logError = console.error;
   console.error = () => {};
   try {
@@ -76,7 +80,10 @@ async function check(name, env, fn) {
   passed += 1;
   console.log(`  ✓ ${name}`);
 }
-const API = { MATCHPULSE_DATA_SOURCE: "api-football", API_FOOTBALL_KEY: "test-key" };
+// General loader tests ignore the plan window; the "API plan" checks below use it.
+const API = { MATCHPULSE_DATA_SOURCE: "api-football", API_FOOTBALL_KEY: "test-key", API_FOOTBALL_PLAN_SEASONS: "all" };
+const API_PLAN = { MATCHPULSE_DATA_SOURCE: "api-football", API_FOOTBALL_KEY: "test-key" };
+const FREE_WINDOW = { from: 2022, to: 2024, source: "api", observedAt: "2026-10-22T09:18:19.966Z" };
 const countOf = (prefix) => requests.filter((r) => r.startsWith(prefix)).length;
 
 console.log("Standings");
@@ -234,6 +241,63 @@ await check("refresh window never drops below the configured value", { ...API, A
   assert.equal((await getMatchFeed()).source.refreshSeconds, 5400);
 });
 
+console.log("API plan (seasons the subscription includes)");
+
+await check("season choice: current if allowed, else the latest covered season in the plan", {}, () => {
+  const s = (year, current = false, standings = true) => ({ year, start: null, end: null, current, coverage: { fixtureEvents: true, lineups: true, fixtureStatistics: true, standings, topScorers: null, topAssists: null } });
+  const seasons = [s(2026, true), s(2025), s(2024), s(2023, false, false), s(2022)];
+  assert.deepEqual(
+    [chooseSeason(seasons, "standings", null).season.year, chooseSeason(seasons, "standings", null).limitedByPlan],
+    [2026, false],
+  );
+  const free = chooseSeason(seasons, "standings", FREE_WINDOW);
+  assert.deepEqual([free.season.year, free.current.year, free.limitedByPlan], [2024, 2026, true]);
+  const noCoverage = chooseSeason([s(2026, true), s(2024, false, false), s(2023)], "standings", FREE_WINDOW);
+  assert.equal(noCoverage.season.year, 2023, "skips a season without coverage");
+  const none = chooseSeason([s(2026, true), s(2025)], "standings", FREE_WINDOW);
+  assert.deepEqual([none.season, none.limitedByPlan], [null, true]);
+  const future = chooseSeason([s(2027), s(2026, true)], "standings", null);
+  assert.equal(future.season.year, 2026, "never picks a future season");
+});
+
+await check("standings: current season outside the plan → latest included season, labelled, one request", API_PLAN, async () => {
+  routes = {
+    "/leagues?country": leaguesRoute({ "premier-league": [{ year: 2026, current: true }, { year: 2025, current: false }, { year: 2024, current: false, start: "2024-08-16", end: "2025-05-25" }] }),
+    "/standings?league&season": (p) => {
+      assert.equal(p.get("season"), "2024", "never requests a season the plan excludes");
+      return envelope([{ league: { id: ids.get("premier-league"), season: 2024, standings: [[{ rank: 1, team: { id: 10, name: "Club 10" }, points: 90, goalsDiff: 50, group: "Premier League", all: { played: 38, win: 28, draw: 6, lose: 4, goals: { for: 90, against: 40 } } }]] } }]);
+    },
+  };
+  const view = await loadStandings("premier-league");
+  assert.equal(view.state, "ok");
+  assert.equal(view.seasonLabel, "2024/25");
+  assert.deepEqual(view.planLimited, { currentLabel: "2026/27" });
+  assert.equal(countOf("/standings"), 1);
+});
+
+await check("standings: no season both covered and in the plan → honest state, no /standings request", API_PLAN, async () => {
+  routes = { "/leagues?country": leaguesRoute({ "serie-a": [{ year: 2026, current: true }, { year: 2025, current: false }] }) };
+  const view = await loadStandings("serie-a");
+  assert.equal(view.state, "plan-restricted");
+  assert.equal(view.currentLabel, "2026/27");
+  assert.deepEqual(view.allowed, { from: 2022, to: 2024 });
+  assert.equal(countOf("/standings"), 0);
+});
+
+await check("a restriction reported by the API is remembered: later restricted seasons cost no request", { ...API_PLAN, API_FOOTBALL_PLAN_SEASONS: "" }, async () => {
+  // Start without any known window (as before the first restricted response).
+  process.env.API_FOOTBALL_PLAN_SEASONS = "all";
+  routes = { "/players/topassists?league&season": () => envelope([], { plan: "Free plans do not have access to this season, try from 2022 to 2024." }) };
+  const first = await loadPlayers({ ...resolvePlayersQuery({ category: "assists" }), season: 2026 });
+  assert.deepEqual(first, { state: "plan-restricted", allowed: { from: 2022, to: 2024 } });
+  assert.equal(countOf("/players/topassists"), 1);
+  // The window is now known; a request for 2025 is refused locally.
+  delete process.env.API_FOOTBALL_PLAN_SEASONS;
+  const { getTopPlayers } = await import("@/lib/api-football/server");
+  await assert.rejects(getTopPlayers("assists", ids.get("premier-league"), 2025, false), (error) => error.kind === "plan_restricted");
+  assert.equal(countOf("/players/topassists"), 1, "no second request");
+});
+
 console.log("Players");
 
 await check("filters: defaults, validation, and plan-aware default season", {}, () => {
@@ -242,10 +306,14 @@ await check("filters: defaults, validation, and plan-aware default season", {}, 
   const base = resolvePlayersQuery({});
   assert.equal(base.competition, "premier-league");
   assert.equal(base.category, "scorers");
-  if (planSeasons && pl.currentSeason > planSeasons.to) {
-    assert.equal(base.season, planSeasons.to, "skips the season the plan rejects");
-    assert.equal(base.defaultedForPlan, true);
-  }
+  assert.equal(base.season, pl.currentSeason, "no plan window: the current season");
+  const planned = resolvePlayersQuery({}, FREE_WINDOW);
+  assert.equal(planned.season, 2024, "current season outside the plan: latest included season");
+  assert.equal(planned.defaultedForPlan, true);
+  assert.ok(planned.seasonOptions.every((year) => year >= 2022 && year <= 2024), "only seasons the plan includes are offered");
+  const askedOutside = resolvePlayersQuery({ season: "2026" }, FREE_WINDOW);
+  assert.equal(askedOutside.season, 2024, "a restricted season in the URL is never requested");
+  assert.ok(planSeasons, "the asset sync recorded the provider's plan window");
   const junk = resolvePlayersQuery({ competition: "<script>", category: "evil", season: "1800" });
   assert.equal(junk.competition, "premier-league");
   assert.equal(junk.category, "scorers");

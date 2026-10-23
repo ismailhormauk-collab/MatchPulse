@@ -101,6 +101,14 @@ function StandingsBody({ view, leagueName }: { view: StandingsView; leagueName: 
           Our football data provider does not supply standings for {leagueName} ({view.seasonLabel}) on the current plan.
         </DataNotice>
       );
+    case "plan-restricted":
+      return (
+        <DataNotice tone="warn">
+          {view.currentLabel} standings for {leagueName} are not included in our current API-Football plan
+          {view.allowed ? ` (it covers ${view.allowed.from} to ${view.allowed.to} seasons)` : ""}, and no earlier season is
+          available, so no table is shown.
+        </DataNotice>
+      );
     case "error":
       return (
         <DataNotice tone="warn" action={view.retryable ? <RefreshButton label="Try again" /> : undefined}>
@@ -109,16 +117,29 @@ function StandingsBody({ view, leagueName }: { view: StandingsView; leagueName: 
       );
     case "empty":
       return (
-        <DataNotice action={<RefreshButton />}>
-          The {view.seasonLabel} table has no entries yet. Updated <LocalTime iso={view.fetchedAt} variant="datetime" />.
-        </DataNotice>
+        <div className="space-y-3">
+          {view.planLimited && <PlanLimitNotice current={view.planLimited.currentLabel} shown={view.seasonLabel} />}
+          <DataNotice action={<RefreshButton />}>
+            The {view.seasonLabel} table has no entries yet. Updated <LocalTime iso={view.fetchedAt} variant="datetime" />.
+          </DataNotice>
+        </div>
       );
     case "ok":
       return (
         <div className="space-y-5">
+          {view.planLimited && <PlanLimitNotice current={view.planLimited.currentLabel} shown={view.seasonLabel} />}
           <DataNotice action={<RefreshButton />}>
-            Standings from API-Football, updated <LocalTime iso={view.fetchedAt} variant="datetime" />. Tables refresh
-            about every hour.
+            {view.planLimited ? (
+              <>
+                Final {view.seasonLabel} standings from API-Football (a completed season), updated{" "}
+                <LocalTime iso={view.fetchedAt} variant="datetime" />.
+              </>
+            ) : (
+              <>
+                Standings from API-Football, updated <LocalTime iso={view.fetchedAt} variant="datetime" />. Tables refresh
+                about every hour.
+              </>
+            )}
           </DataNotice>
           {view.groups.map((group, index) => (
             <section key={group.name ?? index} aria-label={group.name ?? `${leagueName} table`}>
@@ -151,5 +172,15 @@ function StandingsSkeleton() {
         ))}
       </div>
     </div>
+  );
+}
+
+/** The current season is outside the API plan: say which completed season is shown instead. */
+function PlanLimitNotice({ current, shown }: { current: string; shown: string }) {
+  return (
+    <DataNotice tone="warn">
+      {current} (current season) standings are not included in our current API-Football plan. Showing the {shown} season,
+      the latest completed season the plan includes. This is not the live table.
+    </DataNotice>
   );
 }

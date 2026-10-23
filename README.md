@@ -71,6 +71,24 @@ and are opt-in.
   show "provider busy") and **no current-season standings** ("Free plans do
   not have access to this season"); the standings pages say so honestly.
 
+### API plan seasons
+
+The Free plan only includes seasons 2022–2024 (the provider says so in its own
+error: "Free plans do not have access to this season, try from 2022 to 2024").
+MatchPulse learns this window from the API (stored for a week; the asset sync
+records it too) and never requests standings or player rankings for seasons
+outside it:
+
+- **Standings** show the current season when the plan includes it; otherwise
+  the latest completed season the plan includes and the API covers, with a
+  notice that it is not the live table.
+- **Players** only offers seasons the plan includes; the default is the latest.
+- **Fixtures, live scores and match pages** use dates and fixture IDs, not
+  seasons, so they are not affected by the window.
+
+After a plan upgrade set `API_FOOTBALL_PLAN_SEASONS=all` (or run
+`npm run api:sync-assets`) so newer seasons are requested again.
+
 ### Request budget
 
 | Data | Cache lifetime | Approx. requests/day under steady traffic |

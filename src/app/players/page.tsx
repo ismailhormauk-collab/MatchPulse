@@ -3,6 +3,8 @@ import { pageMetadata } from "@/lib/site";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getLeague } from "@/data/leagues";
+import { getPlanSeasonWindow } from "@/lib/api-football/plan";
+import { isLiveDataEnabled } from "@/lib/api-football/server";
 import {
   loadPlayers,
   PLAYER_CATEGORIES,
@@ -37,7 +39,8 @@ export default function PlayersPage({ searchParams }: PageProps<"/players">) {
 }
 
 async function Players({ searchParams }: { searchParams: PageProps<"/players">["searchParams"] }) {
-  const query = resolvePlayersQuery(await searchParams);
+  const params = await searchParams;
+  const query = resolvePlayersQuery(params, isLiveDataEnabled() ? await getPlanSeasonWindow() : null);
   if (!query) {
     return <DataNotice tone="warn">Player statistics are not available right now.</DataNotice>;
   }

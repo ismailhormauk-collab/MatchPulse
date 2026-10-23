@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import { COMPETITION_COUNTRIES, resolveCompetitions, type CompetitionResolution } from "./competitions";
 import { sharedResult } from "./shared-cache";
 import { liveDataAllowedInThisDeployment } from "@/lib/deployment";
+import { chooseSeason, getPlanSeasonWindow, recordPlanRestriction, seasonInWindow } from "./plan";
 import {
   apiFootballRequest,
   ApiFootballError,
@@ -382,24 +383,44 @@ async function cachedStandings(leagueId: number, season: number, seasonFinished:
   return result;
 }
 
+/**
+ * Seasons outside the subscription's window are refused here, before any
+ * request, so a known plan restriction never spends quota. A restriction the
+ * API reports is recorded so later requests can be skipped.
+ */
+async function withinPlan<T>(season: number, run: () => Promise<T>): Promise<T> {
+  const window = await getPlanSeasonWindow();
+  if (window && !seasonInWindow(season, window)) {
+    throw new ApiFootballError("plan_restricted", `plan: Season ${season} is not included in the API plan, try from ${window.from} to ${window.to}.`);
+  }
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof ApiFootballError && error.kind === "plan_restricted") await recordPlanRestriction(error.message);
+    throw error;
+  }
+}
+
 /** Standings for a resolved league and season (one cached request). */
 export async function getLeagueStandings(leagueId: number, season: number, seasonFinished = false): Promise<StandingsResult> {
-  return unwrap(await cachedStandings(leagueId, season, seasonFinished));
+  return withinPlan(season, async () => unwrap(await cachedStandings(leagueId, season, seasonFinished)));
 }
 
 /**
- * Standings for a supported competition. Uses the season the API marks as
- * current unless `season` is given. Returns null when the competition is not
- * resolved or the API reports no standings coverage for that season.
+ * Standings for a supported competition. Without `season`, uses the current
+ * season if the plan includes it, else the latest covered season it does
+ * (see chooseSeason). Returns null when the competition is not resolved or no
+ * usable season exists.
  */
 export async function getStandings(slug: string, season?: number): Promise<Standings | null> {
   const { resolved } = await getSupportedCompetitions();
   const competition = resolved.find((item) => item.slug === slug);
   if (!competition) return null;
-  const year = season ?? competition.currentSeason?.year;
+  const choice = season === undefined ? chooseSeason(competition.seasons, "standings", await getPlanSeasonWindow()).season : null;
+  const year = season ?? choice?.year;
   if (year === undefined) return null;
-  if (season === undefined && competition.currentSeason?.coverage.standings === false) return null;
-  return (await getLeagueStandings(competition.leagueId, year)).standings;
+  const finished = competition.currentSeason !== null && year < competition.currentSeason.year;
+  return (await getLeagueStandings(competition.leagueId, year, finished)).standings;
 }
 
 // ---- Player rankings ---------------------------------------------------------
@@ -450,5 +471,5 @@ export async function getTopPlayers(
   season: number,
   seasonFinished: boolean,
 ): Promise<TopPlayersResult> {
-  return unwrap(await cachedTopPlayers(ranking, leagueId, season, seasonFinished));
+  return withinPlan(season, async () => unwrap(await cachedTopPlayers(ranking, leagueId, season, seasonFinished)));
 }

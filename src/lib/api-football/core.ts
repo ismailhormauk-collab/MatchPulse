@@ -242,6 +242,8 @@ export interface LeagueSeason {
     lineups: boolean | null;
     fixtureStatistics: boolean | null;
     standings: boolean | null;
+    topScorers: boolean | null;
+    topAssists: boolean | null;
   };
 }
 
@@ -272,6 +274,8 @@ function parseSeason(value: unknown): LeagueSeason | null {
       lineups: bool(fixtures.lineups),
       fixtureStatistics: bool(fixtures.statistics_fixtures),
       standings: bool(coverage.standings),
+      topScorers: bool(coverage.top_scorers),
+      topAssists: bool(coverage.top_assists),
     },
   };
 }
