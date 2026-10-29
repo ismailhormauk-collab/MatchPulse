@@ -110,7 +110,7 @@ which raises usage.
 ### Tests
 
 ```bash
-npm test               # time zones, API client, match feed, pages, storage, news, articles (no network)
+npm test               # time zones, API client, match feed, pages, storage, external news, articles (no network)
 npm run test:secrets   # after a build: no secret values in browser bundles or public files
 npm run test:routes -- http://localhost:3000   # HTTP 200/404 checks against a running server
 npm run test:deployment -- https://<url>       # every article page, image, 404, sitemap and robots on a deployment
@@ -128,52 +128,36 @@ future-dated articles are not published. Images go in `public/news-images/` and
 need a credit. All published articles appear on `/news` (newest first) and the latest six under
 "Latest News" on the homepage.
 
-## News (Koora headlines) — not displayed
+## External football news (NewsData.io)
 
-The site no longer shows Koora headlines: `/news` and the homepage's "Latest
-News" list only original MatchPulse articles. The Koora integration below
-(`src/lib/news`, `src/components/news/NewsFeedSection.tsx` and related files)
-is kept, unused and tested, in case Koora grants written permission; nothing
-calls it, so it makes no requests to koora.com or the translation API.
+The homepage and `/news` have a separate **Latest Football News** section with
+external headlines from other publishers via [NewsData.io](https://newsdata.io)
+(public display confirmed in writing by NewsData.io). It is kept apart from
+MatchPulse's own articles; each card is marked "External" and opens the
+publisher's article in a new tab.
 
-
-The News section shows the latest headlines from [Koora](https://koora.com/الأخبار),
-newest publication date first, each linking to the original article.
-
-- **Rights:** Koora publishes no RSS feed, API or reuse licence (its footer says
-  "All rights reserved"), so MatchPulse shows **links only**: the headline, the
-  article's own publication date, "Koora" as the source, and a link. No article
-  text, summaries or images are copied. Ask Koora (content@koora.com) for written
-  permission before showing thumbnails or summaries.
-- **Access:** `robots.txt` is read on every refresh (it currently allows everything
-  except `/api/`, `/_next/`, `/admin/`, `/login`). Sources: the public news sitemap
-  (`/sitemap/news.xml`) and each article's own `NewsArticle` metadata. Requests
-  identify themselves as `MatchPulseNewsBot/1.0`.
-- **Updates:** fetched server-side on demand, never per visitor: the list is cached
-  for 30 minutes and shared across instances through the storage layer (Redis or
-  local files). A refresh reads robots.txt, the sitemap and at most 8 articles it
-  has not seen before (article details are remembered for 30 days). No cron job is
-  needed. If Koora is unreachable, the last good list (up to 14 days old) is shown
-  with its fetch time; otherwise an "unavailable" notice.
-- **English headlines:** Koora's Arabic headlines are machine-translated when a
-  story is first fetched, using the free [MyMemory](https://mymemory.translated.net)
-  API (no key or account; its terms allow automated access). Each headline is
-  translated once and stored with the article, so a refresh only translates new
-  stories. Limits: 5,000 characters a day anonymously (about 70 headlines;
-  `MATCHPULSE_TRANSLATION_EMAIL` raises it to 50,000). Before translating, a
-  football glossary (`src/lib/news/glossary.ts`) puts known names into their
-  English spelling; afterwards the result must be English only, keep every number
-  and glossary name, and have a plausible length. A headline that fails stays in
-  Arabic, labelled "English translation unavailable", and is retried after 12
-  hours. Cards label English headlines "Machine-translated from Arabic"; hovering
-  shows the original. A few awkward machine translations have reviewed wording in
-  `src/lib/news/corrections.ts`, keyed by the exact Arabic headline (labelled
-  "Translated from Arabic"; keep that list short and faithful, and prune it as
-  stories age out). The notice above the cards says whether all, some or none of
-  the shown headlines are in English. `MATCHPULSE_NEWS_TRANSLATION=off` shows Arabic only;
-  `=claude` with `ANTHROPIC_API_KEY` is an optional paid alternative.
-- `MATCHPULSE_NEWS_SOURCE=off` disables the feed. Match reports remain a separate
-  section (`/reports`).
+- **Request** (`src/lib/newsdata/client.ts`): `GET https://newsdata.io/api/1/latest`
+  with `qInTitle="Premier League" OR "Champions League" OR "La Liga" OR "Serie A" OR "Bundesliga" OR "Ligue 1"`,
+  `category=sports`, `language=en`, `country=gb,es,it,de,fr`,
+  `prioritydomain=top`, `size=10`, `removeduplicate=1`. The key
+  (`NEWSDATA_API_KEY`) is read server-side only and sent in the `X-ACCESS-KEY`
+  header, never in a URL or log.
+- **Shown:** headline, source, publication time and link only. Descriptions,
+  full content, images and AI fields are never read or displayed.
+- **Filtered out:** malformed items, aggregators (Google News, MSN, …),
+  time-sensitive headlines ("LIVE", "live stream", "breaking", "how to
+  watch"), duplicates and future dates.
+- **Caching:** at most one request per hour across all instances (shared
+  cache in Redis or local files); if a refresh fails, the last good list (up to
+  3 days old) is shown with its fetch time. About 24 of the free plan's 200
+  daily credits.
+- **Delay:** the free plan delivers articles about 12 hours after publication;
+  the section says so (with the measured delay) and never calls them live.
+  Attribution "Powered by NewsData.io API" links to newsdata.io.
+- The section is hidden when the key is missing, when
+  `MATCHPULSE_EXTERNAL_NEWS=off`, and on Vercel Preview deployments (unless
+  `MATCHPULSE_PREVIEW_LIVE_DATA=true`). Tests use mocked responses only
+  (`npm run test:external-news`).
 
 ## Deployment checklist (not deployed yet)
 
@@ -230,11 +214,11 @@ pages: reads fall back to "missing" and the API is called as before.
 | `MATCHPULSE_STORAGE_PREFIX` | do not set (`matchpulse`) | `matchpulse-preview` if Redis is set | Keeps Preview data apart. |
 | `MATCHPULSE_SITE_URL` | `https://<real-domain>` once the domain is connected | do not set | Origin only, no path. |
 | `MATCHPULSE_ALLOW_INDEXING` | **do not set** until step 9 | **never** | Needs a real `https://` domain; ignored on Preview. |
+| `NEWSDATA_API_KEY` | **set** (secret) | do not set | Server-only, never `NEXT_PUBLIC_`. Without it the "Latest Football News" section is hidden. |
 | `MATCHPULSE_PREVIEW_LIVE_DATA` | – | do not set | Only to test real data on Preview (spends the shared 100/day quota). |
 
 Not needed on Vercel: `MATCHPULSE_DATA_DIR`, `MATCHPULSE_STORAGE`,
-`MATCHPULSE_CONTENT_DIR`, the Koora/translation variables (`MATCHPULSE_NEWS_*`,
-`ANTHROPIC_API_KEY`). `MATCHPULSE_SITE_URL` and `MATCHPULSE_ALLOW_INDEXING` are
+`MATCHPULSE_CONTENT_DIR`. `MATCHPULSE_SITE_URL` and `MATCHPULSE_ALLOW_INDEXING` are
 read at build time: redeploy after changing them. Vercel adds new variables to
 all environments by default: untick Preview/Development where the table says
 "do not set".
@@ -353,7 +337,7 @@ header, match lists, standings and players pages.
 
 ### Remaining limitations
 
-- **News**: Koora headlines as links only (no licence for images or summaries). English headlines are free machine translations: occasional awkward wording is possible, and a headline that fails the reliability checks stays in Arabic until a retry succeeds; extend the glossary for new names. The first refresh shows up to 8 stories, filling to 24 over the next refreshes. Changes to Koora's sitemap or page metadata would stop updates (the last good list is shown meanwhile). Legacy sample-news files (`src/data/news.ts`, `src/components/news/{NewsCard,NewsGrid,FeaturedNews,NewsArtwork}.tsx`) are unused and can be deleted.
+- **External news**: NewsData.io's free plan delays headlines by about 12 hours and covers only the past 48 hours; the country filter covers 5 countries (no Morocco/Botola Pro). Keep the written confirmation of public use on file.
 - **Plan**: current-season standings and player statistics need a paid API-Football plan.
 - **Logos and crests** come from API-Football; review its terms for logo use before launch.
 

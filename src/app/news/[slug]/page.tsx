@@ -12,8 +12,7 @@ import { breadcrumbs, JsonLd } from "@/components/seo/JsonLd";
 import { LocalTime } from "@/components/ui/LocalTime";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
-// Original MatchPulse articles from content/news/<slug>.md. Koora headlines
-// have no pages here: they link to the publisher (no permission to republish).
+// Original MatchPulse articles from content/news/<slug>.md.
 
 async function load(slug: string) {
   // Request time, so scheduled articles appear when their publication time comes.

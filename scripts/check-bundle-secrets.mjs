@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const SECRET_VARS = ["API_FOOTBALL_KEY", "ANTHROPIC_API_KEY", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_URL", "KV_REST_API_URL"];
+const SECRET_VARS = ["API_FOOTBALL_KEY", "NEWSDATA_API_KEY", "ANTHROPIC_API_KEY", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_URL", "KV_REST_API_URL"];
 
 function envLocal() {
   if (!existsSync(".env.local")) return {};
@@ -41,7 +41,7 @@ for (const dir of [".next/static", "public"]) {
     const content = readFileSync(file, "latin1");
     scanned += 1;
     for (const secret of secrets) if (content.includes(secret.value)) leaks.push(`${secret.name} in ${file}`);
-    for (const marker of ["x-apisports-key", "API_FOOTBALL_KEY", "ANTHROPIC_API_KEY", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_TOKEN"]) {
+    for (const marker of ["x-apisports-key", "API_FOOTBALL_KEY", "NEWSDATA_API_KEY", "ANTHROPIC_API_KEY", "UPSTASH_REDIS_REST_TOKEN", "KV_REST_API_TOKEN"]) {
       if (content.includes(marker)) leaks.push(`"${marker}" in ${file}`);
     }
   }

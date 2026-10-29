@@ -6,7 +6,7 @@ import { STANDINGS_SLUGS } from "@/lib/standings";
 import { productionSiteConfigured, siteUrl } from "@/lib/site";
 
 // Useful, stable pages only, including published MatchPulse articles. Not
-// listed: Koora headlines (they live on the publisher's site), and match pages, which only exist for the yesterday-to-tomorrow window.
+// listed: match pages, which only exist for the yesterday-to-tomorrow window.
 // Match reports are listed once a production domain is configured.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connection(); // reports are read from the store at request time

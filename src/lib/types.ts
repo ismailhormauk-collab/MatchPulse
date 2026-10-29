@@ -92,59 +92,6 @@ export type FeedSource =
 
 export type MatchFilter = "all" | "live" | "upcoming" | "finished";
 
-/**
- * Legacy development sample articles (src/data/news.ts). No longer rendered:
- * the News section shows real Koora headlines (NewsItem below).
- */
-export type NewsCategory =
-  | "Analysis"
-  | "Transfers"
-  | "Tactics"
-  | "Competitions"
-  | "Women's Football"
-  | "Data";
-
-export interface NewsImage {
-  src: string;
-  alt: string;
-  /** Required attribution for the licensed image. */
-  credit: string;
-}
-
-export interface NewsArticle {
-  slug: string;
-  title: string;
-  excerpt: string;
-  category: NewsCategory;
-  /** ISO timestamp. */
-  publishedAt: string;
-  readMinutes: number;
-  author: string;
-  body: string[];
-  /** Two colors for the generated placeholder artwork. */
-  tone: [string, string];
-  /** A licensed image. When absent, generated placeholder artwork is shown. */
-  image?: NewsImage;
-  featured?: boolean;
-}
-
-/** A headline from an external news source, shown as a link to the original. */
-export interface NewsItem {
-  id: string;
-  /** Original article on the publisher's site. */
-  url: string;
-  /** Headline exactly as published (Arabic for Koora). */
-  title: string;
-  /** English headline, when a reliable translation exists. */
-  titleEn?: string;
-  /** "reviewed": wording from src/lib/news/corrections.ts; otherwise machine translation. */
-  titleEnSource?: "machine" | "reviewed";
-  /** ISO timestamp: the publisher's own publication date. */
-  publishedAt: string;
-  /** Publisher name for attribution. */
-  source: string;
-}
-
 export interface NavItem {
   label: string;
   href: string;

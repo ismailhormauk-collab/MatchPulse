@@ -10,6 +10,7 @@ import { MatchReportCard } from "@/components/reports/MatchReportArticle";
 import { LeagueSidebar } from "@/components/leagues/LeagueSidebar";
 import { MatchCenterSkeleton, MatchFeedSection } from "@/components/matches/MatchFeedSection";
 import { ArticlesSkeleton, OriginalArticlesSection } from "@/components/articles/OriginalArticlesSection";
+import { ExternalNewsSection } from "@/components/news/ExternalNewsSection";
 import { LeagueBadge } from "@/components/ui/LeagueBadge";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { pageMetadata, SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
@@ -62,6 +63,11 @@ export default function HomePage() {
         {/* Latest original MatchPulse articles; hidden until the first one is published. */}
         <Suspense fallback={<ArticlesSkeleton cards={3} />}>
           <OriginalArticlesSection title="Latest News" headingId="latest-news" whenEmpty="hide" limit={6} showAllLink columns="sidebar" />
+        </Suspense>
+
+        {/* External headlines (NewsData.io), separate from MatchPulse's own articles; hidden if unavailable. */}
+        <Suspense fallback={null}>
+          <ExternalNewsSection headingId="latest-football-news" whenUnavailable="hide" limit={6} columns="sidebar" />
         </Suspense>
 
         <section aria-labelledby="popular-competitions">

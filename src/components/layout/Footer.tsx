@@ -17,8 +17,8 @@ export function Footer() {
           </p>
           <p className="mt-4 rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs leading-relaxed text-warn">
             {liveData
-              ? "Development preview: fixtures, scores, standings and player statistics come from API-Football unless a notice says sample data is shown. News articles are written by the MatchPulse editorial team."
-              : "Development preview: every score and fixture on this site is sample data, not real information. Player statistics and standings are only shown with live data. News articles are written by the MatchPulse editorial team."}
+              ? "Development preview: fixtures, scores, standings and player statistics come from API-Football unless a notice says sample data is shown. News articles are written by the MatchPulse editorial team; external headlines (via NewsData.io) link to their publishers."
+              : "Development preview: every score and fixture on this site is sample data, not real information. Player statistics and standings are only shown with live data. News articles are written by the MatchPulse editorial team; external headlines (via NewsData.io) link to their publishers."}
           </p>
         </div>
 

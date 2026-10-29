@@ -7,9 +7,8 @@ import { register } from "node:module";
 // Tests never touch the project's real data folder or Redis unless a test opts
 // in (MATCHPULSE_STORAGE=filesystem with its own temporary MATCHPULSE_DATA_DIR).
 process.env.MATCHPULSE_STORAGE ??= "none";
-// Tests never fetch koora.com; news tests pass their own fake fetch.
-process.env.MATCHPULSE_NEWS_SOURCE ??= "off";
-process.env.MATCHPULSE_NEWS_TRANSLATION ??= "off";
+// Tests never call NewsData.io; external-news tests opt in with a mocked fetch.
+process.env.MATCHPULSE_EXTERNAL_NEWS ??= "off";
 
 const srcRoot = new URL("../src/", import.meta.url).href;
 
