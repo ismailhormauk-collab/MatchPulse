@@ -57,6 +57,8 @@ async function isMissing(pathname: string): Promise<boolean> {
     if (id === null) return true;
     return !(await reportExists(id));
   }
+  // Static daily pages share the /matches/<x> pattern with fixture IDs.
+  if (section === "matches" && (slug === "yesterday" || slug === "tomorrow")) return false;
   if (section === "matches") {
     const id = fixtureId(slug);
     if (id === null || !liveDataEnabled()) return true; // sample matches have no pages

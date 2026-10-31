@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
-import { pageMetadata } from "@/lib/site";
 import { Suspense } from "react";
-import { MatchCenterSkeleton, MatchFeedSection } from "@/components/matches/MatchFeedSection";
-import { SectionHeading } from "@/components/ui/SectionHeading";
+import { DailyMatches, matchDayMetadata } from "@/components/matches/DailyMatchesPage";
+import { MatchCenterSkeleton } from "@/components/matches/MatchFeedSection";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Matches",
-  description: "Football fixtures, live scores and results from the Premier League, LaLiga, Serie A, Bundesliga, Ligue 1, the Champions League, the Europa League and the Botola Pro.",
-  path: "/matches",
-});
+// Today's football matches (UK date), the main landing page for daily
+// fixtures and scores. Title, description and H1 come from today's real
+// fixtures; a visitor's saved time zone only changes the list in the browser,
+// never the URL.
+export async function generateMetadata(): Promise<Metadata> {
+  return matchDayMetadata("today");
+}
 
 export default function MatchesPage() {
   return (
     <div className="mx-auto max-w-3xl">
-      <SectionHeading as="h1" title="Matches" description="Fixtures and results grouped by competition." />
       <Suspense fallback={<MatchCenterSkeleton />}>
-        <MatchFeedSection />
+        <DailyMatches day="today" />
       </Suspense>
     </div>
   );

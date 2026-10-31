@@ -71,6 +71,27 @@ and are opt-in.
   show "provider busy") and **no current-season standings** ("Free plans do
   not have access to this season"); the standings pages say so honestly.
 
+### Daily match pages and SEO
+
+- **`/matches`** (today), **`/matches/yesterday`** and **`/matches/tomorrow`**: one UK
+  calendar day each (`Europe/London`), with the date in the title, description
+  and H1, built from that day's real fixtures. All three come from the same three
+  cached fixture requests (one per UK day, `timezone=Europe/London`), so they add
+  no API calls. Visitors' saved time zones still apply in the browser; the URL
+  never changes. Open pages reload their data after London midnight.
+- Server-rendered times use UK time (`DEFAULT_PREFERENCES.timeZone`).
+- **Match pages** (`/matches/[id]`) are `noindex, follow` and not in the sitemap:
+  they exist only from yesterday to tomorrow. They have a visible breadcrumb,
+  titles from real fields only, and factual `SportsEvent` data.
+- **League pages** name the season shown (e.g. "Premier League 2024/25 final
+  table" on the Free API plan) and list that competition's matches from
+  yesterday to tomorrow.
+- **Sitemap**: the three daily pages, with `lastmod` = the later of the last
+  meaningful change to that day's fixtures (fixtures, kick-off, status or score)
+  and the most recent London midnight, when the URL moves on to a new date. No
+  `lastmod` until a day's content has been recorded; no API request in the
+  sitemap. Match pages and external NewsData headlines are never listed.
+
 ### API plan seasons
 
 The Free plan only includes seasons 2022–2024 (the provider says so in its own
@@ -214,6 +235,7 @@ pages: reads fall back to "missing" and the API is called as before.
 | `MATCHPULSE_STORAGE_PREFIX` | do not set (`matchpulse`) | `matchpulse-preview` if Redis is set | Keeps Preview data apart. |
 | `MATCHPULSE_SITE_URL` | `https://<real-domain>` once the domain is connected | do not set | Origin only, no path. |
 | `MATCHPULSE_ALLOW_INDEXING` | **do not set** until step 9 | **never** | Needs a real `https://` domain; ignored on Preview. |
+| `GOOGLE_SITE_VERIFICATION` | the Search Console token, once you verify the domain | do not set | Token only (the `content` value of Google's meta tag). Read at build time. |
 | `NEWSDATA_API_KEY` | **set** (secret) | do not set | Server-only, never `NEXT_PUBLIC_`. Without it the "Latest Football News" section is hidden. |
 | `MATCHPULSE_PREVIEW_LIVE_DATA` | – | do not set | Only to test real data on Preview (spends the shared 100/day quota). |
 

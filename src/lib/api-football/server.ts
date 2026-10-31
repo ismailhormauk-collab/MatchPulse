@@ -230,15 +230,17 @@ async function cachedFixturesByDate(
   date: string,
   freshness: "past" | "today" | "future",
   leagueIds: number[],
+  timeZone: string,
 ): Promise<Result<FixturesResult>> {
   "use cache";
   cacheTag("api-football", `api-football:fixtures:${date}`);
   const result = await shared<FixturesResult>(
-    `fixtures:${date}:${freshness}:${[...leagueIds].sort((a, b) => a - b).join(",")}`,
+    `fixtures:${date}:${timeZone}:${freshness}:${[...leagueIds].sort((a, b) => a - b).join(",")}`,
     async () => {
       const fetched = await attempt<FixturesResult>(async () => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new ApiFootballError("api", `Invalid date "${date}".`);
-        const envelope = await apiFootballRequest("/fixtures", { date, timezone: "UTC" }, requestOptions());
+        // The provider reads `date` as a calendar day in `timezone`.
+        const envelope = await apiFootballRequest("/fixtures", { date, timezone: timeZone }, requestOptions());
         warnIfQuotaLow("/fixtures", envelope.quota);
         const parsed = parseFixtures(envelope.response);
         logInvalid("/fixtures", parsed.invalid);
@@ -276,8 +278,9 @@ export async function getFixturesByDate(
   date: string,
   freshness: "past" | "today" | "future",
   leagueIds: number[],
+  timeZone = "UTC",
 ): Promise<FixturesResult> {
-  return unwrap(await cachedFixturesByDate(date, freshness, leagueIds));
+  return unwrap(await cachedFixturesByDate(date, freshness, leagueIds, timeZone));
 }
 
 async function cachedLiveFixtures(leagueIds: number[]): Promise<Result<FixturesResult>> {

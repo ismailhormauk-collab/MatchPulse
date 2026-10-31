@@ -1,6 +1,7 @@
 import "server-only";
 
 import { connection } from "next/server";
+import { cache } from "react";
 import { SUPPORTED_COMPETITIONS } from "@/lib/api-football/competitions";
 import { describeError, type LeagueSeason, type StandingRow } from "@/lib/api-football/core";
 import { friendlyReason } from "@/lib/api-football/messages";
@@ -50,7 +51,8 @@ export function seasonLabel(season: Pick<LeagueSeason, "year" | "start" | "end">
  * request when real data is off, the competition is unresolved, or no season is
  * both covered and allowed.
  */
-export async function loadStandings(slug: string): Promise<StandingsView> {
+// React cache: metadata and the page share one load per request.
+export const loadStandings = cache(async function loadStandings(slug: string): Promise<StandingsView> {
   if (!isLiveDataEnabled()) return { state: "disabled" };
   await connection();
 
@@ -86,4 +88,44 @@ export async function loadStandings(slug: string): Promise<StandingsView> {
     const retryable = !["unauthorized", "missing_key", "plan_restricted", "quota_exhausted"].includes(kind);
     return { state: "error", reason: friendlyReason(kind), retryable };
   }
+});
+
+export interface StandingsCopy {
+  title: string;
+  h1: string;
+  description: string;
+}
+
+function fit(text: string, max = 160): string {
+  return text.length <= max ? text : `${text.slice(0, max - 1).replace(/[\s,;:]+\S*$/, "")}…`;
+}
+
+/**
+ * Title, H1 and description naming the season actually shown. On a plan that
+ * excludes the current season, an earlier table is labelled as that season's
+ * final table and never presented as current.
+ */
+export function standingsCopy(leagueName: string, view: StandingsView): StandingsCopy {
+  if ((view.state === "ok" || view.state === "empty") && view.planLimited) {
+    const season = view.seasonLabel;
+    return {
+      title: `${leagueName} ${season} Final Table`,
+      h1: `${leagueName} ${season} final table`,
+      description: fit(
+        `Final ${season} ${leagueName} table: position, points, wins, draws, losses and goal difference. ${view.planLimited.currentLabel} standings are not available on our current data plan.`,
+      ),
+    };
+  }
+  if (view.state === "ok" || view.state === "empty") {
+    return {
+      title: `${leagueName} Table ${view.seasonLabel}`,
+      h1: `${leagueName} table ${view.seasonLabel}`,
+      description: fit(`${leagueName} ${view.seasonLabel} table: position, played, won, drawn, lost, goals for and against, goal difference and points.`),
+    };
+  }
+  return {
+    title: `${leagueName} standings`,
+    h1: `${leagueName} standings`,
+    description: `${leagueName} table: position, played, won, drawn, lost, goals for and against, goal difference and points.`,
+  };
 }

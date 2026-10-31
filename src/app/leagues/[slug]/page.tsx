@@ -5,7 +5,12 @@ import { pageMetadata, siteUrl } from "@/lib/site";
 import { breadcrumbs, JsonLd } from "@/components/seo/JsonLd";
 import { Suspense } from "react";
 import { getLeague } from "@/data/leagues";
-import { hasStandings, loadStandings, STANDINGS_SLUGS, type StandingsView } from "@/lib/standings";
+import { hasStandings, loadStandings, STANDINGS_SLUGS, standingsCopy, type StandingsView } from "@/lib/standings";
+import { getMatchFeed } from "@/lib/match-feed";
+import { MATCH_DAY_PATH, type MatchDay } from "@/lib/match-days";
+import { formatDateKeyShort, formatTime, SITE_TIME_ZONE, zonedDateKey } from "@/lib/time";
+import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { MatchCard } from "@/components/matches/MatchCard";
 import { StandingsTable } from "@/components/leagues/StandingsTable";
 import { DataNotice } from "@/components/ui/DataNotice";
 import { LeagueBadge } from "@/components/ui/LeagueBadge";
@@ -22,11 +27,9 @@ export async function generateMetadata({ params }: PageProps<"/leagues/[slug]">)
   if (!league || !hasStandings(slug)) {
     return pageMetadata({ title: "Standings not found", description: "This competition has no standings page.", path: "/leagues", index: false });
   }
-  return pageMetadata({
-    title: `${league.name} standings`,
-    description: `${league.name} table: position, played, won, drawn, lost, goals for and against, goal difference and points.`,
-    path: `/leagues/${slug}`,
-  });
+  // Names the season actually shown (shares the page's cached standings load).
+  const copy = standingsCopy(league.name, await loadStandings(slug));
+  return pageMetadata({ title: copy.title, description: copy.description, path: `/leagues/${slug}` });
 }
 
 export default function StandingsPage({ params }: PageProps<"/leagues/[slug]">) {
@@ -43,30 +46,26 @@ async function Standings({ params }: { params: PageProps<"/leagues/[slug]">["par
   const league = getLeague(slug);
   if (!league || !hasStandings(slug)) notFound();
   const view = await loadStandings(slug);
+  const copy = standingsCopy(league.name, view);
 
   return (
     <div className="mx-auto max-w-4xl">
       <JsonLd
         data={breadcrumbs(
           [
+            { name: "Home", path: "/" },
             { name: "Leagues", path: "/leagues" },
-            { name: `${league.name} standings`, path: `/leagues/${slug}` },
+            { name: copy.h1, path: `/leagues/${slug}` },
           ],
           siteUrl(),
         )}
       />
-      <nav aria-label="Breadcrumb" className="mb-3 text-xs text-muted">
-        <Link href="/leagues" className="hover:text-pulse">
-          Leagues
-        </Link>
-        <span aria-hidden> / </span>
-        <span className="text-ink/80">{league.name}</span>
-      </nav>
+      <Breadcrumbs items={[{ name: "Home", href: "/" }, { name: "Leagues", href: "/leagues" }, { name: league.name }]} />
 
       <div className="mb-4 flex items-center gap-3">
         <LeagueBadge league={league} size="lg" />
         <div className="min-w-0">
-          <h1 className="font-display text-3xl font-bold leading-tight tracking-wide">{league.name} standings</h1>
+          <h1 className="font-display text-3xl font-bold leading-tight tracking-wide">{copy.h1}</h1>
           <p className="text-sm text-muted">
             {league.country}
             {"seasonLabel" in view ? ` · Season ${view.seasonLabel}` : ""}
@@ -75,7 +74,76 @@ async function Standings({ params }: { params: PageProps<"/leagues/[slug]">["par
       </div>
 
       <StandingsBody view={view} leagueName={league.name} />
+      <LeagueFixtures slug={slug} leagueName={league.name} />
     </div>
+  );
+}
+
+const DAYS: { day: MatchDay; label: string }[] = [
+  { day: "yesterday", label: "Yesterday" },
+  { day: "today", label: "Today" },
+  { day: "tomorrow", label: "Tomorrow" },
+];
+
+/**
+ * This competition's matches from yesterday to tomorrow (UK time), from the
+ * same cached feed as /matches (no extra API requests). Real data only.
+ */
+async function LeagueFixtures({ slug, leagueName }: { slug: string; leagueName: string }) {
+  const feed = await getMatchFeed();
+  if (feed.source.kind !== "api-football") return null;
+  const mine = feed.matches.filter((match) => match.leagueSlug === slug).sort((a, b) => a.kickoff.localeCompare(b.kickoff));
+  const byDay = DAYS.map(({ day, label }) => ({
+    day,
+    label,
+    matches: mine.filter((match) => zonedDateKey(match.kickoff, SITE_TIME_ZONE) === feed.days[day]),
+  }));
+
+  return (
+    <section aria-labelledby="league-fixtures" className="mt-8">
+      <h2 id="league-fixtures" className="font-display text-xl font-bold tracking-wide text-ink">
+        {leagueName} fixtures and results
+      </h2>
+      <p className="mt-1 text-xs text-muted">Yesterday to tomorrow, in UK time. Scores update about every hour.</p>
+      {mine.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">
+          No {leagueName} matches between {formatDateKeyShort(feed.days.yesterday)} and {formatDateKeyShort(feed.days.tomorrow)}.
+        </p>
+      ) : (
+        <div className="mt-3 space-y-4">
+          {byDay
+            .filter((group) => group.matches.length > 0)
+            .map((group) => (
+              <div key={group.day}>
+                <h3 className="mb-1.5 text-sm font-semibold text-ink">
+                  {group.label} · {formatDateKeyShort(feed.days[group.day])}
+                </h3>
+                <div className="space-y-1.5">
+                  {group.matches.map((match) => (
+                    <MatchCard
+                      key={match.id}
+                      match={match}
+                      kickoffLabel={formatTime(match.kickoff, { timeZone: SITE_TIME_ZONE, timeFormat: "24h" })}
+                      clock={match.status === "live" ? match.clock : undefined}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
+      <p className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+        <Link href={MATCH_DAY_PATH.yesterday} className="font-medium text-pulse hover:underline">
+          Yesterday&apos;s results →
+        </Link>
+        <Link href={MATCH_DAY_PATH.today} className="font-medium text-pulse hover:underline">
+          Today&apos;s matches →
+        </Link>
+        <Link href={MATCH_DAY_PATH.tomorrow} className="font-medium text-pulse hover:underline">
+          Tomorrow&apos;s fixtures →
+        </Link>
+      </p>
+    </section>
   );
 }
 

@@ -1,4 +1,4 @@
-import { isValidTimeZone, type TimeFormat } from "./time";
+import { isValidTimeZone, SITE_TIME_ZONE, type TimeFormat } from "./time";
 
 export type Theme = "dark" | "light";
 
@@ -11,10 +11,14 @@ export interface Preferences {
 export const PREFERENCES_KEY = "matchpulse:preferences";
 export const PREFERENCES_VERSION = 1;
 
-/** Used on the server and during hydration, before stored values are read. */
+/**
+ * Used on the server and during hydration, before stored values are read.
+ * Server-rendered times are in the site time zone (UK time); in the browser a
+ * visitor's saved or detected time zone replaces it.
+ */
 export const DEFAULT_PREFERENCES: Preferences = Object.freeze({
   theme: "dark",
-  timeZone: "UTC",
+  timeZone: SITE_TIME_ZONE,
   timeFormat: "24h",
 });
 

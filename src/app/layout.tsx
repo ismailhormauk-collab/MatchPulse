@@ -3,7 +3,7 @@ import { Barlow_Condensed, Geist, Geist_Mono } from "next/font/google";
 import { Footer } from "@/components/layout/Footer";
 import { Header } from "@/components/layout/Header";
 import { themeBootScript } from "@/lib/preferences";
-import { indexingAllowed, SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
+import { googleVerification, indexingAllowed, SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,6 +31,8 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   ...(indexingAllowed() ? {} : { robots: { index: false, follow: true } }),
+  // Google Search Console HTML-tag verification (token only), when configured.
+  ...(googleVerification() ? { verification: { google: googleVerification()! } } : {}),
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

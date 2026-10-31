@@ -96,6 +96,66 @@ export function formatDateKeyPill(dateKey: string): { weekday: string; day: stri
   };
 }
 
+/**
+ * MatchPulse's public site time zone. Server-rendered pages, the daily match
+ * URLs (/matches, /matches/yesterday, /matches/tomorrow) and their titles use
+ * UK time; visitors' saved time zones still apply in the browser.
+ */
+export const SITE_TIME_ZONE = "Europe/London";
+
+/** A "YYYY-MM-DD" key moved by whole calendar days. */
+export function shiftDateKey(dateKey: string, days: number): string {
+  const date = dateKeyToDate(dateKey);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** "Sat 31 Oct 2026" for a "YYYY-MM-DD" key. */
+export function formatDateKeyShort(dateKey: string): string {
+  return formatter("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(dateKeyToDate(dateKey))
+    .replace(",", "");
+}
+
+/** UK zone name at an instant: "GMT" in winter, "BST" in summer. */
+export function ukZoneName(instant: string | Date): string {
+  const part = formatter("en-GB", { timeZoneName: "short", timeZone: SITE_TIME_ZONE })
+    .formatToParts(new Date(instant))
+    .find((p) => p.type === "timeZoneName");
+  return part?.value === "BST" ? "BST" : "GMT";
+}
+
+/**
+ * Milliseconds from `now` until the next midnight in `timeZone`. Found by
+ * search on the calendar date, so it is correct across daylight-saving changes.
+ */
+export function msUntilNextMidnight(now: string | Date, timeZone: string): number {
+  const start = new Date(now).getTime();
+  const today = zonedDateKey(new Date(start), timeZone);
+  let low = start;
+  let high = start + 27 * 3_600_000;
+  while (high - low > 1) {
+    const mid = low + Math.floor((high - low) / 2);
+    if (zonedDateKey(new Date(mid), timeZone) === today) low = mid;
+    else high = mid;
+  }
+  return high - start;
+}
+
+/** The instant the current calendar day began in `timeZone` (its last midnight), across daylight-saving changes. */
+export function zonedDayStart(now: string | Date, timeZone: string): Date {
+  const end = new Date(now).getTime();
+  const today = zonedDateKey(new Date(end), timeZone);
+  let low = end - 27 * 3_600_000;
+  let high = end;
+  while (high - low > 1) {
+    const mid = low + Math.floor((high - low) / 2);
+    if (zonedDateKey(new Date(mid), timeZone) === today) high = mid;
+    else low = mid;
+  }
+  return new Date(high);
+}
+
 /** Short UTC offset of a zone at an instant, e.g. "GMT+9" or "GMT". */
 export function formatOffset(timeZone: string, instant: string | Date): string {
   const part = formatter("en-US", { timeZoneName: "shortOffset", timeZone })

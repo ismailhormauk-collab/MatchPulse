@@ -10,6 +10,7 @@ import {
   formatOffset,
   formatTime,
   matchClock,
+  shiftDateKey,
   zonedDateKey,
   type TimeSettings,
 } from "@/lib/time";
@@ -45,16 +46,25 @@ interface MatchCenterProps {
   source: FeedSource;
   /** Limit the number of league groups shown (homepage). */
   maxLeagues?: number;
+  /** Day selected initially, relative to today in the viewer's time zone. */
+  initialDay?: "yesterday" | "today" | "tomorrow";
+  /** Heading level for competition names: h2 on the daily match pages, h3 inside another section. */
+  competitionHeading?: "h2" | "h3";
 }
 
-export function MatchCenter({ matches, now, source, maxLeagues }: MatchCenterProps) {
+const DAY_OFFSET = { yesterday: -1, today: 0, tomorrow: 1 } as const;
+
+export function MatchCenter({ matches, now, source, maxLeagues, initialDay = "today", competitionHeading = "h3" }: MatchCenterProps) {
+  const CompetitionHeading = competitionHeading;
   const prefs = usePreferences();
   const { timeZone } = prefs;
-  // null means "today" in the viewer's zone, so a zone change keeps the selection sensible.
+  // null means the page's own day (today, yesterday or tomorrow) in the viewer's
+  // zone, so a zone change keeps the selection sensible.
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [filter, setFilter] = useState<MatchFilter>("all");
 
   const today = zonedDateKey(now, timeZone);
+  const defaultDate = shiftDateKey(today, DAY_OFFSET[initialDay]);
 
   // Each match's calendar date depends on the viewer's time zone.
   const byDate = useMemo(() => {
@@ -68,8 +78,8 @@ export function MatchCenter({ matches, now, source, maxLeagues }: MatchCenterPro
     return map;
   }, [matches, timeZone]);
 
-  const dates = useMemo(() => [...new Set([...byDate.keys(), today])].sort(), [byDate, today]);
-  const date = selectedDate && dates.includes(selectedDate) ? selectedDate : today;
+  const dates = useMemo(() => [...new Set([...byDate.keys(), today, defaultDate])].sort(), [byDate, today, defaultDate]);
+  const date = selectedDate && dates.includes(selectedDate) ? selectedDate : defaultDate;
   const dateIndex = dates.indexOf(date);
 
   const dayMatches = useMemo(() => byDate.get(date) ?? [], [byDate, date]);
@@ -199,11 +209,11 @@ export function MatchCenter({ matches, now, source, maxLeagues }: MatchCenterPro
               <header className="mb-1.5 flex items-center gap-2.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5">
                 <LeagueBadge league={league} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <h3 id={`league-${league.slug}`} className="truncate text-sm font-semibold text-ink">
+                  <CompetitionHeading id={`league-${league.slug}`} className="truncate text-sm font-semibold text-ink">
                     <Link href={leagueHref(league.slug)} className="hover:text-pulse">
                       {league.name}
                     </Link>
-                  </h3>
+                  </CompetitionHeading>
                   <p className="text-[11px] leading-tight text-muted">{league.country}</p>
                 </div>
                 <span className="text-xs tabular-nums text-faint">

@@ -6,9 +6,26 @@ import { MatchCenter } from "./MatchCenter";
  * match centre. Render it inside <Suspense>: with real data enabled it waits
  * for request time; with sample data it resolves during prerendering.
  */
-export async function MatchFeedSection({ maxLeagues }: { maxLeagues?: number }) {
+export async function MatchFeedSection({
+  maxLeagues,
+  initialDay,
+  competitionHeading,
+}: {
+  maxLeagues?: number;
+  initialDay?: "yesterday" | "today" | "tomorrow";
+  competitionHeading?: "h2" | "h3";
+}) {
   const feed = await getMatchFeed();
-  return <MatchCenter matches={feed.matches} now={feed.now} source={feed.source} maxLeagues={maxLeagues} />;
+  return (
+    <MatchCenter
+      matches={feed.matches}
+      now={feed.now}
+      source={feed.source}
+      maxLeagues={maxLeagues}
+      initialDay={initialDay}
+      competitionHeading={competitionHeading}
+    />
+  );
 }
 
 export function MatchCenterSkeleton({ rows = 6 }: { rows?: number }) {

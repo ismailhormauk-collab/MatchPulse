@@ -47,6 +47,15 @@ export function indexingAllowed(): boolean {
 // Reserved example domains (RFC 2606) and local names are placeholders, never production.
 const PLACEHOLDER_HOST = /(^|\.)(example\.(com|net|org)|example|test|invalid|localhost|local)$/;
 
+/**
+ * Google Search Console verification token (GOOGLE_SITE_VERIFICATION), or
+ * null. Only the token's safe characters are accepted, never markup.
+ */
+export function googleVerification(env: NodeJS.ProcessEnv = process.env): string | null {
+  const token = env.GOOGLE_SITE_VERIFICATION?.trim();
+  return token && /^[A-Za-z0-9_-]{10,100}$/.test(token) ? token : null;
+}
+
 /** True when MATCHPULSE_SITE_URL names a real public https origin (not localhost or a placeholder). */
 export function productionSiteConfigured(): boolean {
   const raw = process.env.MATCHPULSE_SITE_URL?.trim();

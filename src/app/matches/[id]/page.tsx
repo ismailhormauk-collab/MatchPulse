@@ -3,6 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { pageMetadata, siteUrl } from "@/lib/site";
 import { breadcrumbs, JsonLd } from "@/components/seo/JsonLd";
+import { Breadcrumbs, type Crumb } from "@/components/seo/Breadcrumbs";
+import { getMatchFeed } from "@/lib/match-feed";
+import { MATCH_DAY_PATH, type MatchDay } from "@/lib/match-days";
+import { matchMetaCopy } from "@/lib/match-meta";
+import { SITE_TIME_ZONE, zonedDateKey } from "@/lib/time";
 import type { Match } from "@/lib/types";
 import { Suspense } from "react";
 import { getLeague, leagueHref } from "@/data/leagues";
@@ -11,22 +16,19 @@ import { MatchDetailsView } from "@/components/matches/MatchDetailsView";
 import { MatchReportArticle } from "@/components/reports/MatchReportArticle";
 import { DataNotice } from "@/components/ui/DataNotice";
 
+// Indexing: match pages are temporary (they exist for the yesterday-to-tomorrow
+// window, then return 404), so they are always "noindex, follow" and never in
+// the sitemap. Revisit once a durable match archive exists.
 export async function generateMetadata({ params }: PageProps<"/matches/[id]">): Promise<Metadata> {
   const { id } = await params;
   // Feed lookup only: shares the page's cached feed and never requests details.
   const summary = await loadMatchSummary(id);
   if (summary.state !== "found") {
-    // Unknown or invalid IDs render a message with HTTP 200 (streamed), so keep them out of search indexes.
     const title = summary.state === "invalid" || summary.state === "not-found" ? "Match not found" : "Match details";
     return pageMetadata({ title, description: "Match details on MatchPulse.", path: "/matches", index: false });
   }
-  const { home, away, leagueSlug } = summary.match;
-  const league = getLeague(leagueSlug)?.name;
-  return pageMetadata({
-    title: `${home.name} vs ${away.name}`,
-    description: `${home.name} vs ${away.name}${league ? ` in the ${league}` : ""}: score, events, lineups and statistics.`,
-    path: `/matches/${summary.id}`,
-  });
+  const { title, description } = matchMetaCopy(summary.match);
+  return pageMetadata({ title, description, path: `/matches/${summary.id}`, index: false });
 }
 
 // Unknown or out-of-window IDs get a real 404 from src/proxy.ts when the
@@ -34,11 +36,6 @@ export async function generateMetadata({ params }: PageProps<"/matches/[id]">): 
 export default function MatchPage({ params }: PageProps<"/matches/[id]">) {
   return (
     <div className="mx-auto max-w-3xl">
-      <nav aria-label="Breadcrumb" className="mb-3 text-xs text-muted">
-        <Link href="/matches" className="hover:text-pulse">
-          ← All matches
-        </Link>
-      </nav>
       <Suspense fallback={<MatchSkeleton />}>
         <MatchContent params={params} />
       </Suspense>
@@ -72,8 +69,20 @@ async function MatchContent({ params }: { params: PageProps<"/matches/[id]">["pa
       const { match } = view;
       const venue = view.details?.venue;
       const path = `/matches/${match.fixtureId}`;
+      const teams = `${match.home.name} vs ${match.away.name}`;
+      const trail: Crumb[] = [
+        { name: "Home", href: "/" },
+        { name: "Matches", href: "/matches" },
+        ...(league ? [{ name: league.name, href: leagueHref(league.slug) }] : []),
+        { name: teams },
+      ];
+      // The UK day page that lists this match (yesterday, today or tomorrow).
+      const { days } = await getMatchFeed();
+      const matchDate = zonedDateKey(match.kickoff, SITE_TIME_ZONE);
+      const day = (Object.keys(days) as MatchDay[]).find((key) => days[key] === matchDate);
       return (
         <>
+          <Breadcrumbs items={trail} />
           <JsonLd
             data={{
               "@graph": [
@@ -85,6 +94,10 @@ async function MatchContent({ params }: { params: PageProps<"/matches/[id]">["pa
                   eventStatus: eventStatus(match),
                   homeTeam: { "@type": "SportsTeam", name: match.home.name },
                   awayTeam: { "@type": "SportsTeam", name: match.away.name },
+                  competitor: [
+                    { "@type": "SportsTeam", name: match.home.name },
+                    { "@type": "SportsTeam", name: match.away.name },
+                  ],
                   ...(venue?.name
                     ? { location: { "@type": "Place", name: venue.name, ...(venue.city ? { address: venue.city } : {}) } }
                     : {}),
@@ -92,10 +105,11 @@ async function MatchContent({ params }: { params: PageProps<"/matches/[id]">["pa
                   url: new URL(path, siteUrl()).toString(),
                 },
                 breadcrumbs(
-                  [
-                    { name: "Matches", path: "/matches" },
-                    { name: `${match.home.name} vs ${match.away.name}`, path },
-                  ],
+                  trail.map((item) => ({
+                    name: item.name,
+                    // Competitions without a standings page link to an anchor on /leagues.
+                    path: item.href ? item.href.split("#")[0] : path,
+                  })),
                   siteUrl(),
                 ),
               ],
@@ -118,13 +132,21 @@ async function MatchContent({ params }: { params: PageProps<"/matches/[id]">["pa
               </p>
             </section>
           )}
-          {league && (
-            <p className="mt-5 text-center text-sm">
+          <nav aria-label="Related pages" className="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
+            {league && (
               <Link href={leagueHref(league.slug)} className="font-medium text-pulse hover:underline">
                 {league.name} standings →
               </Link>
-            </p>
-          )}
+            )}
+            {day && day !== "today" && (
+              <Link href={MATCH_DAY_PATH[day]} className="font-medium text-pulse hover:underline">
+                {day === "yesterday" ? "Yesterday's results" : "Tomorrow's fixtures"} →
+              </Link>
+            )}
+            <Link href="/matches" className="font-medium text-pulse hover:underline">
+              Today&apos;s matches →
+            </Link>
+          </nav>
         </>
       );
     }
@@ -144,6 +166,7 @@ function eventStatus(match: Match): string {
 function Message({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-4">
+      <Breadcrumbs items={[{ name: "Home", href: "/" }, { name: "Matches", href: "/matches" }, { name: title }]} />
       <h1 className="font-display text-3xl font-bold tracking-wide">{title}</h1>
       <DataNotice tone="warn">{children}</DataNotice>
       <Link href="/matches" className="inline-block text-sm font-medium text-pulse hover:underline">

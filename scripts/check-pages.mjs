@@ -26,6 +26,13 @@ const { getMatchFeed } = await import("@/lib/match-feed");
 const { loadPlayers, resolvePlayersQuery, seasonMatchLimit, PLAYER_COMPETITIONS } = await import("@/lib/players");
 const { getLeagueAsset, planSeasons } = await import("@/data/api-assets");
 const { chooseSeason, resetPlanWindowForTests } = await import("@/lib/api-football/plan");
+const { zonedDateKey, shiftDateKey, msUntilNextMidnight, ukZoneName, formatDateKeyShort, zonedDayStart } = await import("@/lib/time");
+const { loadMatchDay, matchDayCopy, competitionList, MATCH_DAY_PATH } = await import("@/lib/match-days");
+const { siteDays } = await import("@/lib/match-feed");
+const { matchMetaCopy } = await import("@/lib/match-meta");
+const { standingsCopy } = await import("@/lib/standings");
+const { googleVerification } = await import("@/lib/site");
+const { recordDayContents, dayChangedAt, resetDayChangesMemo } = await import("@/lib/day-changes");
 const { indexingAllowed, pageMetadata, productionSiteConfigured, siteUrl } = await import("@/lib/site");
 const { getStoredReport, listStoredReports, saveReportOnce } = await import("@/lib/report-store");
 const { isKnownFixture, recordKnownFixtures, resetFixtureIndexMemo, INDEX_MAX_AGE_MS } = await import("@/lib/fixture-index");
@@ -172,7 +179,7 @@ await check("sample mode: details disabled without requests", {}, async () => {
   assert.equal(requests.length, 0);
 });
 
-const today = new Date(now).toISOString().slice(0, 10);
+const today = zonedDateKey(new Date(now), "Europe/London");
 function feedRoutes(extra = {}) {
   return {
     "/leagues?country": leaguesRoute(),
@@ -568,6 +575,185 @@ await check("Preview deployments are never indexed, whatever the variables say",
 
 await check("invalid site URLs fall back to localhost", { MATCHPULSE_SITE_URL: "javascript:alert(1)" }, () => {
   assert.equal(siteUrl().toString(), "http://localhost:3000/");
+});
+
+console.log("Daily match pages (UK time)");
+
+await check("UK dates: day shifts, zone names and the next London midnight (across the October clock change)", {}, () => {
+  assert.equal(shiftDateKey("2026-10-31", -1), "2026-10-30");
+  assert.equal(shiftDateKey("2026-12-31", 1), "2027-01-01");
+  assert.equal(formatDateKeyShort("2026-10-31"), "Sat 31 Oct 2026");
+  assert.equal(ukZoneName("2026-10-24T12:00:00Z"), "BST");
+  assert.equal(ukZoneName("2026-10-31T12:00:00Z"), "GMT");
+  // 23:30 UTC on 24 Oct is 00:30 BST on 25 Oct; the next London midnight is 26 Oct 00:00 GMT.
+  assert.equal(msUntilNextMidnight("2026-10-24T23:30:00Z", "Europe/London"), 24.5 * 3600e3);
+  assert.equal(msUntilNextMidnight("2026-10-31T23:59:30Z", "Europe/London"), 30e3);
+  assert.equal(zonedDayStart("2026-07-02T10:00:00Z", "Europe/London").toISOString(), "2026-07-01T23:00:00.000Z", "BST midnight");
+  assert.equal(zonedDayStart("2026-10-31T10:00:00Z", "Europe/London").toISOString(), "2026-10-31T00:00:00.000Z", "GMT midnight");
+  assert.equal(zonedDayStart("2026-10-25T12:00:00Z", "Europe/London").toISOString(), "2026-10-24T23:00:00.000Z", "day of the clock change starts at 00:00 BST");
+  // Late on a summer evening London is already on the next date.
+  assert.deepEqual(siteDays("2026-07-01T23:30:00Z"), { yesterday: "2026-07-01", today: "2026-07-02", tomorrow: "2026-07-03" });
+  assert.deepEqual(siteDays("2026-07-01T22:30:00Z"), { yesterday: "2026-06-30", today: "2026-07-01", tomorrow: "2026-07-02" });
+});
+
+const days = siteDays(new Date());
+const noonOf = (key) => Date.parse(`${key}T12:00:00Z`);
+function dayRoutes() {
+  return {
+    "/leagues?country": leaguesRoute(),
+    "/fixtures?date&timezone": (p) => {
+      assert.equal(p.get("timezone"), "Europe/London", "UK calendar days are requested");
+      const date = p.get("date");
+      if (date === days.yesterday) {
+        return envelope([
+          fixtureEntry({ id: 7001, kickoffMs: noonOf(days.yesterday), short: "FT", goals: [2, 1] }),
+          fixtureEntry({ id: 7002, slug: "laliga", kickoffMs: noonOf(days.yesterday) + 3600e3, short: "PST", goals: [null, null] }),
+        ]);
+      }
+      if (date === days.today) {
+        return envelope([
+          fixtureEntry({ id: 7003, kickoffMs: noonOf(days.today), short: "NS", goals: [null, null] }),
+          fixtureEntry({ id: 7004, slug: "serie-a", kickoffMs: noonOf(days.today) + 3600e3, short: "NS", goals: [null, null] }),
+          fixtureEntry({ id: 7005, slug: "champions-league", kickoffMs: noonOf(days.today) + 7200e3, short: "NS", goals: [null, null] }),
+          fixtureEntry({ id: 7006, slug: "bundesliga", kickoffMs: noonOf(days.today) + 9000e3, short: "NS", goals: [null, null] }),
+        ]);
+      }
+      return envelope([]); // tomorrow: no fixtures
+    },
+  };
+}
+
+await check("today: real counts and competitions in title, description and H1; nothing else", API, async () => {
+  routes = dayRoutes();
+  const view = await loadMatchDay("today");
+  assert.equal(view.dateKey, days.today);
+  assert.equal(view.real, true);
+  assert.equal(view.counts.total, 4);
+  const copy = matchDayCopy(view);
+  assert.equal(copy.title, `Today's Football Matches – ${formatDateKeyShort(days.today)}`);
+  assert.ok(`${copy.title} · MatchPulse`.length <= 60, "fits a search result");
+  assert.match(copy.h1, /^Today's football matches – \w+day, \d{1,2} \w+ \d{4}$/);
+  assert.match(copy.description, /^4 football matches today, /);
+  assert.match(copy.description, /kick-off times in UK time/);
+  assert.match(copy.description, /from the Champions League, the Premier League and 2 more competitions\.$/, "site order; names dropped to fit, whole sentence");
+  assert.ok(copy.description.length <= 160);
+  assert.doesNotMatch(copy.description, /…/, "not cut off");
+  assert.doesNotMatch(copy.title + copy.description, /\blive\b/i, "no live claims");
+  assert.equal(countOf("/fixtures?date="), 3, "the same three cached day requests, no more");
+});
+
+await check("yesterday: final scores and postponed matches stated honestly", API, async () => {
+  routes = dayRoutes();
+  const view = await loadMatchDay("yesterday");
+  assert.deepEqual([view.counts.total, view.counts.finished, view.counts.postponed], [2, 1, 1]);
+  const copy = matchDayCopy(view);
+  assert.match(copy.title, /^Football Results – \w+day \d{1,2} \w+ \d{4}$/);
+  assert.match(copy.description, /2 matches from the Premier League and LaLiga, with 1 final score, 1 postponed\./);
+});
+
+await check("tomorrow with no fixtures: honest empty copy, no crash", API, async () => {
+  routes = dayRoutes();
+  const view = await loadMatchDay("tomorrow");
+  assert.equal(view.counts.total, 0);
+  const copy = matchDayCopy(view);
+  assert.match(copy.summary, /There are no fixtures on/);
+  assert.match(copy.description, /See today's matches, yesterday's results and league tables\./);
+});
+
+await check("provider unavailable or sample data: generic copy, never counts or invented fixtures", API, async () => {
+  routes = { "/leagues?country": leaguesRoute(), "/fixtures?date&timezone": () => envelope([], { requests: "You have reached the request limit for the day" }) };
+  const down = await loadMatchDay("today");
+  assert.equal(down.real, false);
+  assert.equal(down.counts.total, 0);
+  const copy = matchDayCopy(down);
+  assert.doesNotMatch(copy.description, /\d+ (football )?match/);
+  const sample = await (async () => {
+    delete process.env.MATCHPULSE_DATA_SOURCE;
+    return loadMatchDay("today");
+  })();
+  assert.equal(sample.source.kind, "sample");
+  assert.equal(sample.real, false, "sample days are not treated as real (and are noindex)");
+  assert.deepEqual(MATCH_DAY_PATH, { yesterday: "/matches/yesterday", today: "/matches", tomorrow: "/matches/tomorrow" });
+});
+
+await check("competition lists read naturally", {}, () => {
+  assert.equal(competitionList(["Premier League"]), "the Premier League");
+  assert.equal(competitionList(["Premier League", "LaLiga"]), "the Premier League and LaLiga");
+  assert.equal(competitionList(["Premier League", "LaLiga", "Serie A", "Bundesliga", "Ligue 1"]), "the Premier League, LaLiga, Serie A and 2 more competitions");
+});
+
+console.log("Match page and standings copy");
+
+await check("match pages: titles from real fields by status; no invented score", {}, () => {
+  const base = { id: "apif-1", source: "api-football", fixtureId: 1, leagueSlug: "premier-league", kickoff: "2026-10-31T15:00:00Z", home: { name: "Arsenal" }, away: { name: "Chelsea" } };
+  const upcoming = matchMetaCopy({ ...base, status: "upcoming" });
+  assert.equal(upcoming.title, "Arsenal vs Chelsea – Premier League, Sat 31 Oct 2026");
+  assert.match(upcoming.description, /kick-off 15:00 UK time on Sat 31 Oct 2026/);
+  const finished = matchMetaCopy({ ...base, status: "finished", homeScore: 2, awayScore: 1 });
+  assert.equal(finished.title, "Arsenal 2-1 Chelsea – Premier League result");
+  const noScore = matchMetaCopy({ ...base, status: "finished" });
+  assert.doesNotMatch(noScore.title, /\d-\d/, "no score without provider data");
+  assert.match(matchMetaCopy({ ...base, status: "postponed", statusDetail: "Cancelled" }).title, /– Cancelled$/);
+  assert.doesNotMatch(JSON.stringify([upcoming, finished]), /\blive\b|H2H/i);
+});
+
+await check("standings: titles name the season actually shown; old tables are never 'current'", {}, () => {
+  const limited = standingsCopy("Premier League", { state: "ok", seasonLabel: "2024/25", fetchedAt: "x", groups: [], planLimited: { currentLabel: "2026/27" } });
+  assert.equal(limited.title, "Premier League 2024/25 Final Table");
+  assert.equal(limited.h1, "Premier League 2024/25 final table");
+  assert.match(limited.description, /2026\/27 standings are not available/);
+  assert.ok(limited.description.length <= 160);
+  const current = standingsCopy("Premier League", { state: "ok", seasonLabel: "2026/27", fetchedAt: "x", groups: [], planLimited: null });
+  assert.equal(current.title, "Premier League Table 2026/27");
+  assert.equal(standingsCopy("Premier League", { state: "disabled" }).title, "Premier League standings");
+});
+
+console.log("Google setup and sitemap");
+
+await check("Search Console verification token: accepted only as a plain token", {}, () => {
+  assert.equal(googleVerification({}), null);
+  assert.equal(googleVerification({ GOOGLE_SITE_VERIFICATION: "  AbC123_-xyz0987654321  " }), "AbC123_-xyz0987654321");
+  assert.equal(googleVerification({ GOOGLE_SITE_VERIFICATION: '"><script>alert(1)</script>' }), null);
+  assert.equal(googleVerification({ GOOGLE_SITE_VERIFICATION: "short" }), null);
+});
+
+await check("sitemap lastmod: changes only when a day's fixtures, statuses or scores change", { MATCHPULSE_STORAGE: "filesystem" }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "matchpulse-sitemap-"));
+  process.env.MATCHPULSE_DATA_DIR = dir;
+  resetDayChangesMemo();
+  const { default: sitemap } = await import("../src/app/sitemap.ts");
+  const lastmod = async (path) => (await sitemap()).find((e) => e.url.endsWith(path)).lastModified;
+  let urls = (await sitemap()).map((entry) => entry.url);
+  assert.ok(urls.some((u) => u.endsWith("/matches/yesterday")) && urls.some((u) => u.endsWith("/matches/tomorrow")));
+  assert.ok(!urls.some((u) => /\/matches\/\d+$/.test(u)), "no temporary match pages");
+  assert.ok(!urls.some((u) => !u.startsWith("http://localhost:3000/")), "only own URLs (no external headlines)");
+  assert.equal(await lastmod("/matches"), undefined, "no lastmod without a recorded change");
+
+  const match = (overrides = {}) => ({ id: "apif-1", source: "api-football", fixtureId: 1, leagueSlug: "premier-league", kickoff: `${days.today}T15:00:00Z`, home: { name: "A" }, away: { name: "B" }, status: "live", homeScore: 0, awayScore: 0, clock: { label: "10'", progress: 0.1 }, ...overrides });
+  // Times after today's London midnight (the real "now" in this test run).
+  const base = zonedDayStart(new Date(), "Europe/London").getTime();
+  const t1 = new Date(base + 60e3);
+  await recordDayContents({ [days.today]: [match()], [days.tomorrow]: [] }, t1);
+  assert.equal(await lastmod("/matches"), t1.toISOString());
+  assert.equal(await lastmod("/matches/tomorrow"), t1.toISOString(), "first time a day's content is seen");
+  assert.equal(await lastmod("/matches/yesterday"), undefined, "a day whose data was not loaded gets no lastmod");
+
+  // Same content later, and on a fresh server instance: no change, no new timestamp.
+  await recordDayContents({ [days.today]: [match()] }, new Date(base + 120e3));
+  resetDayChangesMemo();
+  await recordDayContents({ [days.today]: [match({ clock: { label: "35'", progress: 0.4 } })] }, new Date(base + 180e3));
+  assert.equal(await lastmod("/matches"), t1.toISOString(), "live clock alone is not a content change");
+
+  // A goal is a real change.
+  const t2 = new Date(base + 240e3);
+  await recordDayContents({ [days.today]: [match({ homeScore: 1 })] }, t2);
+  assert.equal(await lastmod("/matches"), t2.toISOString());
+  assert.equal(await lastmod("/matches/tomorrow"), t1.toISOString(), "other days keep their own time");
+  assert.deepEqual(Object.keys(await dayChangedAt([days.today])), [days.today]);
+  // A day whose content last changed before today's midnight: its URL still moved on at midnight.
+  await recordDayContents({ [days.yesterday]: [match({ kickoff: `${days.yesterday}T15:00:00Z`, status: "finished" })] }, new Date(base - 3600e3));
+  assert.equal(await lastmod("/matches/yesterday"), new Date(base).toISOString(), "later of content change and London midnight");
+  rmSync(dir, { recursive: true, force: true });
 });
 
 console.log(`\n${passed} page-data checks passed (mocked fetch, no network)`);

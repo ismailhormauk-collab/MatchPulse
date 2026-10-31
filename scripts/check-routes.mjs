@@ -32,7 +32,7 @@ function skip(reason) {
 console.log(`Route status checks against ${BASE}\n`);
 
 console.log("Valid routes");
-for (const path of ["/", "/matches", "/leagues", "/leagues/premier-league", "/players", "/news", "/reports"]) await expectStatus(path, 200);
+for (const path of ["/", "/matches", "/matches/yesterday", "/matches/tomorrow", "/leagues", "/leagues/premier-league", "/players", "/news", "/reports"]) await expectStatus(path, 200);
 const robotsTxt = await expectStatus("/robots.txt", 200);
 assert.match(robotsTxt.body, /User-Agent: \*/);
 await expectStatus("/sitemap.xml", 200);

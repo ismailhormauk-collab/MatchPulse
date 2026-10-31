@@ -21,13 +21,18 @@ globalThis.fetch = async (input, init) => {
   const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
   if (provider.error) return json({ errors: provider.error, results: 0, paging: { current: 1, total: 1 }, response: [] });
   if (url.pathname === "/leagues") return json(envelope(leaguesFor(url.searchParams.get("country"))));
-  if (url.pathname === "/fixtures" && url.searchParams.has("date")) return json(envelope(provider.fixtures(url.searchParams.get("date"))));
+  if (url.pathname === "/fixtures" && url.searchParams.has("date")) {
+    // Calendar days are requested in the site time zone (UK time).
+    assert.equal(url.searchParams.get("timezone"), "Europe/London");
+    return json(envelope(provider.fixtures(url.searchParams.get("date"))));
+  }
   throw new Error(`Unexpected request ${url.pathname}${url.search}`);
 };
 
 const { SUPPORTED_COMPETITIONS } = await import("../src/lib/api-football/competitions.ts");
 const { sampleMatches, SAMPLE_NOW } = await import("@/data/matches");
 const { getMatchFeed } = await import("@/lib/match-feed");
+const { zonedDateKey } = await import("@/lib/time");
 
 // Synthetic league IDs: resolution must come from the provider response.
 const leagueIdBySlug = new Map(SUPPORTED_COMPETITIONS.map((spec, index) => [spec.slug, 7000 + index]));
@@ -120,7 +125,7 @@ await check("api mode: every match comes from the provider response", API_ENV, a
     // Unsupported league: must be dropped.
     { ...providerFixture({ id: 900004, slug: "premier-league", kickoffMs: now, short: "NS", goals: [null, null], home: "X", away: "Y" }), league: { id: 1, name: "Other", season: 2026 } },
   ];
-  const today = new Date(now).toISOString().slice(0, 10);
+  const today = zonedDateKey(new Date(now), "Europe/London");
   provider = { fixtures: (date) => (date === today ? fixtures : []), error: null };
 
   const feed = await getMatchFeed();
